@@ -11,6 +11,7 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 from statsmodels.tsa.stattools import adfuller
+import math
 
 from stationarization import load_train_data
 # from check_stationarity import load_train_data
@@ -267,16 +268,25 @@ def pca_feature_selection(fred_qd, fred_md, target_column="GDPC1", n_features=30
     Returns:
         combined_pca_components (pd.Series): Summed top principal components of fred_qd and fred_md.
     """
+    n_quarterly_features = n_features // 2
+    n_monthly_features = n_features - n_quarterly_features
+
+    qd_scaler = StandardScaler()
+    md_scaler = StandardScaler()
+
+    qd_scaled = qd_scaler.fit_transform(fred_qd.drop(columns=[target_column]))
+    md_scaled = md_scaler.fit_transform(fred_md)
+
     # Perform PCA on fred_qd
-    pca_qd = PCA(n_components=n_features)
-    pca_qd_components = pca_qd.fit_transform(fred_qd.drop(columns=[target_column]))
-    pca_qd_df = pd.DataFrame(pca_qd_components, index=fred_qd.index, columns=[f"PC_QD_{i+1}" for i in range(n_features)])
+    pca_qd = PCA(n_components=n_quarterly_features)
+    pca_qd_components = pca_qd.fit_transform(qd_scaled)
+    pca_qd_df = pd.DataFrame(pca_qd_components, index=fred_qd.index, columns=[f"PCA_QD_{i+1}" for i in range(n_quarterly_features)])
     pca_qd_df[target_column] = fred_qd[target_column]
 
     # Perform PCA on fred_md
-    pca_md = PCA(n_components=n_features)
-    pca_md_components = pca_md.fit_transform(fred_md)
-    pca_md_df = pd.DataFrame(pca_md_components, index=fred_md.index, columns=[f"PC_MD_{i+1}" for i in range(n_features)])
+    pca_md = PCA(n_components=n_monthly_features)
+    pca_md_components = pca_md.fit_transform(md_scaled)
+    pca_md_df = pd.DataFrame(pca_md_components, index=fred_md.index, columns=[f"PCA_MD_{i+1}" for i in range(n_monthly_features)])
 
     return pca_qd_df, pca_md_df
 
@@ -296,7 +306,7 @@ def plot_comparison(feature_importances, feature_rankings, feature_coefficients,
     feature_importances_sorted = feature_importances.sort_values(ascending=False).head(30)
     sns.barplot(x=feature_importances_sorted, y=feature_importances_sorted.index, color="blue", alpha=0.7)
     plt.title("Top Features Selected by Tree-Based Model", fontsize=16)
-    plt.xlabel("Importance", fontsize=14)
+    plt.xlabel("Gini Importance", fontsize=14)
     plt.ylabel("Features", fontsize=14)
     plt.tight_layout()
     tree_output_file = f"{output_file_prefix}_tree_based.png"

@@ -21,7 +21,7 @@ import random
 import math
 
 # from stationarization import load_train_data
-from check_stationarity import load_train_data, load_test_data
+from check_stationarity import load_train_data
 from feature_selection import remove_highly_correlated_features, lasso_feature_selection, tree_based_feature_selection, rfe_feature_selection, pca_feature_selection, combine_qd_with_summed_md
 
 should_plot = False
@@ -178,7 +178,7 @@ def instantiate_model_alternating_rnn(sequence_length, n_monthly_features, n_qua
         # elif len(o) == 2:
         #     hidden_state, cell_state = o
         #     h2 = hidden_state
-
+        
         # o = monthly_rnn(all_monthly_inputs[:, m+2:m+3, :], initial_state=[hidden_state, cell_state])
         # if len(o) == 3:
         #     h3, hidden_state, cell_state = o
@@ -208,17 +208,15 @@ def instantiate_model_alternating_rnn(sequence_length, n_monthly_features, n_qua
 
     return model
 
-def train_and_evaluate_model(md_train_stationary, qd_train_stationary, feature_selection_method, n_features, dropout_rate, optimizer, batch_size, hidden_units, sequence_length, learning_rate, add_recession_feature=True, instantiate_model=instantiate_model_multilayer, create_datapoints=create_datapoints_lstm_1_2_and_3, max_epochs=40, verbose=True, model_description=None, md_test_stationary=None, qd_test_stationary=None):
+def train_and_evaluate_model(md_train_stationary, qd_train_stationary, feature_selection_method, n_features, dropout_rate, optimizer, batch_size, hidden_units, sequence_length, learning_rate, add_recession_feature=True, instantiate_model=instantiate_model_multilayer, create_datapoints=create_datapoints_lstm_1_2_and_3, max_epochs=40, verbose=True, model_description=None):
     if fast_mode:
         md_train_stationary = md_train_stationary.iloc[:300]
         qd_train_stationary = qd_train_stationary.iloc[:100]
         max_epochs = 5
 
-    has_test_data = md_test_stationary is not None and qd_test_stationary is not None
-
     start_of_train_run = datetime.datetime.now().strftime("%Y-%m-%d %Hh%Mm%Ss")
 
-    base_seed = 2571267# + 12093871
+    base_seed = 2571267
     set_seed(base_seed)
 
     param_dict = {
@@ -288,9 +286,7 @@ def train_and_evaluate_model(md_train_stationary, qd_train_stationary, feature_s
         # Create separate DataFrames for monthly and quarterly selected features
         train_val_monthly = md_train_stationary[monthly_features]
         train_val_quarterly = qd_train_stationary[quarterly_features]
-        test_monthly = md_test_stationary[monthly_features] if has_test_data else None
-        test_quarterly = qd_test_stationary[quarterly_features] if has_test_data else None
-
+    
     if add_recession_feature:
         # Define recession periods from NBER dates
         recessions = [
@@ -312,17 +308,9 @@ def train_and_evaluate_model(md_train_stationary, qd_train_stationary, feature_s
         for date in train_val_monthly.index:
             is_recession = any(start <= date <= end for start, end in recessions)
             recession_binary.append(1 if is_recession else 0)
-
+        
         train_val_monthly['Recession'] = recession_binary
-
-        test_recession_binary = []
-        if has_test_data:
-            for date in test_monthly.index:
-                is_recession = any(start <= date <= end for start, end in recessions)
-                test_recession_binary.append(1 if is_recession else 0)
-
-            test_monthly['Recession'] = test_recession_binary
-
+        
     if verbose:
         # Print the separated features for verification
         print("Selected Monthly Features:")
@@ -343,25 +331,17 @@ def train_and_evaluate_model(md_train_stationary, qd_train_stationary, feature_s
 
 
     lowest_validation_losses = []
-    lowest_train_losses = []
     validation_predictions_per_split = []
 
     loss_plot_dir = f"results/loss_plot {start_of_train_run}"
-    if verbose:
-        os.makedirs(loss_plot_dir, exist_ok=True)
+    os.makedirs(loss_plot_dir, exist_ok=True)
 
     number_of_quarters = len(train_val_quarterly)
     if verbose:
         print("n:", number_of_quarters)
 
-    best_epoch = {}
-    test_predictions = []
-
     for train_proportion in range(initial_train_size, full_train_val_size, val_size):
         set_seed(base_seed + (hash(train_proportion) + hash(91647)) % 100_000_000)
-
-        should_eval_test_set = has_test_data and train_proportion + val_size >= full_train_val_size
-        best_epoch[train_proportion] = []
         validation_predictions_current_split = []
 
         tf.keras.backend.clear_session()
@@ -403,11 +383,6 @@ def train_and_evaluate_model(md_train_stationary, qd_train_stationary, feature_s
                                             index=val_monthly.index,
                                             columns=val_monthly.columns)
 
-        if should_eval_test_set:
-            test_monthly_scaled = pd.DataFrame(scaler_md.transform(test_monthly),
-                                                index=test_monthly.index,
-                                                columns=test_monthly.columns)
-
         train_quarterly_scaled = pd.concat(
             [
                 pd.DataFrame(
@@ -440,23 +415,6 @@ def train_and_evaluate_model(md_train_stationary, qd_train_stationary, feature_s
             axis=1
         )
 
-        if should_eval_test_set:
-            test_quarterly_scaled = pd.concat(
-                [
-                    pd.DataFrame(
-                        scaler_qd.transform(test_quarterly.drop(columns=["GDPC1"])),
-                        index=test_quarterly.index,
-                        columns=[c for c in test_quarterly.columns if c != "GDPC1"]
-                    ),
-                    pd.DataFrame(
-                        scaler_gdp.transform(test_quarterly[["GDPC1"]]),
-                        index=test_quarterly.index,
-                        columns=["GDPC1"]
-                    ),
-                ],
-                axis=1
-            )
-
         # Confirm shapes
         if verbose:
             print("Monthly Scaled:", train_monthly_scaled.shape, val_monthly_scaled.shape)
@@ -473,12 +431,6 @@ def train_and_evaluate_model(md_train_stationary, qd_train_stationary, feature_s
             print("y_train shape:", y_train.shape)
 
         x_val_monthly, x_val_quarterly, x_val_shift, y_val, val_dates = create_datapoints(val_monthly_scaled, val_quarterly_scaled, sequence_length)
-
-        if should_eval_test_set:
-            x_test_monthly, x_test_quarterly, x_test_shift, y_test, test_dates = create_datapoints(test_monthly_scaled, test_quarterly_scaled, sequence_length)
-
-        # x_test_monthly, x_test_quarterly, x_test_shift, y_test, test_dates = create_datapoints(val_monthly_scaled, val_quarterly_scaled, sequence_length)
-
         if verbose:
             print("x_val_md shape:", x_val_monthly.shape)
             print("x_val_qd shape:", x_val_quarterly.shape)
@@ -489,7 +441,6 @@ def train_and_evaluate_model(md_train_stationary, qd_train_stationary, feature_s
         else:
             training_repetition_count = 3
         val_losses = [] # we are gonna train it 5 times and take the average of the second and third best model for increased stability
-        train_losses = []
 
         for training_repetition_idx in range(training_repetition_count):
             set_seed(base_seed + (hash(training_repetition_idx) + hash(89520)) % 100_000_000)
@@ -536,7 +487,7 @@ def train_and_evaluate_model(md_train_stationary, qd_train_stationary, feature_s
             history = model.fit(
                 [x_train_monthly, x_train_quarterly, x_train_shift],
                 y_train,
-                validation_data=([x_val_monthly, x_val_quarterly, x_val_shift], tf.repeat(y_val, 3, -1)),
+                validation_data=([x_val_monthly, x_val_quarterly, x_val_shift], y_val),
                 epochs=max_epochs,
                 batch_size=batch_size,
                 verbose=1 if verbose else 0,
@@ -546,111 +497,39 @@ def train_and_evaluate_model(md_train_stationary, qd_train_stationary, feature_s
 
             plot_loss(loss_plot_dir, month_start_training_data, month_end_training_data, month_end_validation_data, history, verbose=verbose)
 
+            val_losses.append(min(history.history['val_loss']))
+
             # Step 3: Evaluate the model on validation data
-            val_loss = np.mean(model.evaluate([x_val_monthly, x_val_quarterly, x_val_shift], y_val, verbose=0))
-            train_loss = np.mean(model.evaluate([x_train_monthly, x_train_quarterly, x_train_shift], y_train, verbose=0))
-            val_losses.append(val_loss)
-            train_losses.append(train_loss)
-
-            if should_eval_test_set:
-                test_prediction = model.predict([x_test_monthly, x_test_quarterly, x_test_shift], verbose=0)
-                if len(test_prediction.shape) == 3:
-                    test_prediction = test_prediction[..., 0]
-                test_prediction_repetitions = test_prediction.shape[1] // y_test.shape[1]
-
-                print(f"Test prediction shape: {test_prediction.shape}")
-                print(f"Test ground truth shape: {y_test.shape}")
-
-                rmse = np.sqrt(mean_squared_error(np.repeat(y_test, test_prediction_repetitions, axis=-1), test_prediction))
-                mae = mean_absolute_error(np.repeat(y_test, test_prediction_repetitions, axis=-1), test_prediction)
-                test_predictions.append({
-                    'predictions': scaler_gdp.inverse_transform(test_prediction.reshape(-1, 1)),
-                    'ground_truth': scaler_gdp.inverse_transform(y_test),
-                    'rmse': rmse,
-                    'mae': mae,
-                    'dates': test_dates,
-                })
-            # test_predictions = scaler_gdp.inverse_transform(model.predict([x_val_monthly, x_val_quarterly, x_val_shift], verbose=0).reshape(-1, 1))
-            # test_ground_truth = scaler_gdp.inverse_transform(y_val)
-
-            if verbose:
-                print(f"Validation Loss: {val_loss}")
-                print(f"Train Loss: {train_loss}")
-
+            val_loss = model.evaluate([x_val_monthly, x_val_quarterly, x_val_shift], y_val, verbose=0)
             validation_predictions_current_split.append((
                 val_loss,
                 scaler_gdp.inverse_transform(model.predict([x_val_monthly, x_val_quarterly, x_val_shift], verbose=0).reshape(-1, 1)),
                 scaler_gdp.inverse_transform(y_val),
                 val_dates,
-                train_loss,
             ))
+            if verbose:
+                print(f"Validation Loss: {val_loss}")
+            train_loss = model.evaluate([x_train_monthly, x_train_quarterly, x_train_shift], y_train, verbose=0)
+            if verbose:
+                print(f"Train Loss: {train_loss}")
 
             plot_y_train_val(y_train, y_val)
 
-            best_epoch[train_proportion].append({
-                'val_loss': val_loss,
-                'epoch': early_stopping.stopped_epoch,
-            })
-
-        print(f"{val_losses=}")
         val_losses.sort()
-        # lowest_validation_losses.append(sum(val_losses[1:-1]) / (training_repetition_count - 2))
-        # lowest_validation_losses.append(np.sum(val_losses[1:-1], axis=0) / (training_repetition_count - 2))
-        lowest_validation_losses.append(val_losses[1])
-        train_losses.sort()
-        # lowest_train_losses.append(sum(train_losses[1:-1]) / (training_repetition_count - 2))
-        lowest_train_losses.append(train_losses[1])
-
-
-        best_validation_run = 0
-        best_validation_loss = float("inf")
-
-        for i, val_loss in enumerate(val_losses):
-            if val_loss < best_validation_loss:
-                best_validation_loss = val_loss
-                best_validation_run = i
-
+        lowest_validation_losses.append(sum(val_losses[1:-1]) / (training_repetition_count - 2))
         validation_predictions_current_split.sort(key=lambda x: x[0])
         validation_predictions_per_split.append(validation_predictions_current_split[1]) # Select second best prediction
 
 
-    median_test_predictions = test_predictions[best_validation_run]
+    validation_predictions_stationary = np.array([p for _, ps, _, _ in validation_predictions_per_split for p in ps]).flatten()
+    validation_ground_truth_stationary = np.array([y for _, _, ys, _ in validation_predictions_per_split for y in ys]).flatten()
 
-    test_predictions.sort(key=lambda x: x['rmse'])
-    median_test_predictions = test_predictions[1]
-    # median_test_predictions = test_predictions[1]
-    # best_test_predictions = test_predictions[0]
+    prediction_repetitions = validation_predictions_stationary.shape[0] // validation_ground_truth_stationary.shape[0]
 
-    # index_of_best = next(i for i, test_prediction in enumerate(test_predictions) if test_prediction['rmse'] == median_test_predictions['rmse'])
-    # print("Best test predictions index:", index_of_best)
+    assert prediction_repetitions * validation_ground_truth_stationary.shape[0] == validation_predictions_stationary.shape[0], f"Length of predictions is not an integer multiple of ground truth. Predictions counts: {validation_predictions_stationary.shape[0]}, ground truth count: {validation_ground_truth_stationary.shape[0]}"
 
-    # if best_test_predictions['rmse'] == median_test_predictions['rmse']:
-    #     print("Same!")
-
-    pr = np.array([list(p) for _, ps, _, _, _ in validation_predictions_per_split for p in ps])
-    gt = np.array([list(y) for _, _, ys, _, _ in validation_predictions_per_split for y in ys])
-    print(pr)
-    print(pr.shape)
-    print(pr.dtype)
-
-    np.save("pr.npy", pr)
-    np.save("gt.npy", gt)
-
-    validation_predictions_diff_log = np.array([p for _, ps, _, _, _ in validation_predictions_per_split for p in ps]).flatten()
-    validation_ground_truth_diff_log = np.array([y for _, _, ys, _, _ in validation_predictions_per_split for y in ys]).flatten()
-    test_predictions_diff_log: np.ndarray = median_test_predictions['predictions'].flatten()
-    test_ground_truth_diff_log: np.ndarray = median_test_predictions['ground_truth'].flatten()
-
-    prediction_repetitions = validation_predictions_diff_log.shape[0] // validation_ground_truth_diff_log.shape[0]
-
-    assert prediction_repetitions * validation_ground_truth_diff_log.shape[0] == validation_predictions_diff_log.shape[0], f"Length of predictions is not an integer multiple of ground truth. Predictions counts: {validation_predictions_diff_log.shape[0]}, ground truth count: {validation_ground_truth_diff_log.shape[0]}"
-    assert prediction_repetitions * test_ground_truth_diff_log.shape[0] == test_predictions_diff_log.shape[0], f"Length of predictions is not {prediction_repetitions} times that of the ground truth. Predictions counts: {test_predictions_diff_log.shape[0]}, ground truth count: {test_ground_truth_diff_log.shape[0]}"
-
-    val_dates = [d for _, _, _, dates, _ in validation_predictions_per_split for d in dates]
-    repeated_val_dates = [d + pd.DateOffset(months=month_offset) for _, _, _, dates, _ in validation_predictions_per_split for d in dates for month_offset in range(prediction_repetitions)]
-    test_dates = median_test_predictions['dates']
-    repeated_test_dates = [d + pd.DateOffset(months=month_offset) for d in test_dates for month_offset in range(prediction_repetitions)]
-
+    flattened_val_dates = [d for _, _, _, dates in validation_predictions_per_split for d in dates]
+    repeated_val_dates = [d + pd.DateOffset(months=month_offset) for _, _, _, dates in validation_predictions_per_split for d in dates for month_offset in range(prediction_repetitions)]
     # print(f"{repeated_val_dates=}")
     # print(f"{[dates for _, _, _, dates in validation_predictions_per_split]=}")
 
@@ -664,40 +543,33 @@ def train_and_evaluate_model(md_train_stationary, qd_train_stationary, feature_s
 
     # gdp_cumulative = gdp_qd.values.cumsum()
 
+    print(f"{verbose=}")
     if verbose:
+        print("Het is uit den boze")
         qd = pd.read_csv("FRED_QD.csv", index_col=0, parse_dates=True, date_format="%Y-%m-%d")[2:]
         qd.index = pd.to_datetime(qd.index, format="%m/%d/%Y")
+        gdp_qd = qd["GDPC1"].copy()
+        gdp_qd: pd.Series = gdp_qd.loc[[date - pd.DateOffset(months=3) for date in flattened_val_dates]]
+        print("gdp_qd shape:", gdp_qd.values.shape, "val_dates length:", len(flattened_val_dates))
 
-        gdp_qd_val = qd["GDPC1"].copy()
-        gdp_qd_val: pd.Series = gdp_qd_val.loc[[date - pd.DateOffset(months=3) for date in val_dates]]
-        gdp_log_val = np.log(gdp_qd_val.values)
+        gdp_log = np.log(gdp_qd.values)
 
-        gdp_qd_test = qd["GDPC1"].copy()
-        gdp_qd_test: pd.Series = gdp_qd_test.loc[[date - pd.DateOffset(months=3) for date in test_dates]]
-        gdp_log_test = np.log(gdp_qd_test.values)
+        validation_mean_change = np.mean(validation_ground_truth_stationary).repeat(validation_ground_truth_stationary.shape[0])
+        validation_predictions = np.exp(validation_predictions_stationary + gdp_log.repeat(prediction_repetitions))
+        validation_ground_truth = np.exp(validation_ground_truth_stationary + gdp_log)
+        validation_mean_predictions = np.exp(validation_mean_change + gdp_log)
 
-        validation_mean_diff_log = np.mean(validation_ground_truth_diff_log).repeat(validation_ground_truth_diff_log.shape[0])
-        validation_predictions_usd = np.exp(validation_predictions_diff_log + gdp_log_val.repeat(prediction_repetitions))
-        validation_ground_truth_usd = np.exp(validation_ground_truth_diff_log + gdp_log_val)
-        validation_mean_predictions_usd = np.exp(validation_mean_diff_log + gdp_log_val)
-
-        test_mean_diff_log = np.mean(test_ground_truth_diff_log).repeat(test_ground_truth_diff_log.shape[0])
-        test_predictions_usd = np.exp(test_predictions_diff_log + gdp_log_test.repeat(prediction_repetitions))
-        test_ground_truth_usd = np.exp(test_ground_truth_diff_log + gdp_log_test)
-        test_mean_predictions_usd = np.exp(test_mean_diff_log + gdp_log_test)
-
-        print(f"{len(val_dates)=}")
+        print(f"{len(flattened_val_dates)=}")
         print(f"{len(repeated_val_dates)=}")
-        print(f"{validation_ground_truth_diff_log.shape=}")
+        print(f"{validation_ground_truth_stationary.shape=}")
 
-        # Plot validation predictions in billion USD
         plt.figure(figsize=(12, 6))
-        plt.plot(repeated_val_dates, validation_predictions_usd, label="Predicted GDP", color="green")
-        plt.plot(val_dates, validation_ground_truth_usd, label="Actual GDP", color="orange")
-        # plt.plot(val_dates, validation_mean_predictions_usd, label="Assuming mean GDP growth", color="blue")
-        plt.title("Validation Predictions vs Actual GDP in billion USD")
+        plt.plot(repeated_val_dates, validation_predictions, label="Predicted GDP", color="green")
+        plt.plot(flattened_val_dates, validation_ground_truth, label="Actual GDP", color="orange")
+        plt.plot(flattened_val_dates, validation_mean_predictions, label="Assuming mean GDP growth", color="blue")
+        plt.title("Validation Predictions vs Actual GDP")
         plt.xlabel("Date")
-        plt.ylabel("GDP (billion USD)")
+        plt.ylabel("GDP")
         plt.legend()
         plt.xticks(rotation=45)
         plt.grid(True)
@@ -707,11 +579,11 @@ def train_and_evaluate_model(md_train_stationary, qd_train_stationary, feature_s
         plt.savefig(f"{loss_plot_dir}/validation_predictions_2001_onward.png")
         plt.close()
 
-        # Plot validation predictions in delta-log
+        # Non-transformed plot
         plt.figure(figsize=(12, 6))
-        plt.plot(repeated_val_dates, validation_predictions_diff_log, label=r"Predicted $\Delta \log(GDP)$", color="green")
-        plt.plot(val_dates, validation_ground_truth_diff_log, label=r"Actual $\Delta \log(GDP)$", color="orange")
-        # plt.plot(val_dates, validation_mean_diff_log, label=r"Mean $\Delta \log(GDP)$", color="blue")
+        plt.plot(repeated_val_dates, validation_predictions_stationary, label=r"Predicted $\Delta \log(GDP)$", color="green")
+        plt.plot(flattened_val_dates, validation_ground_truth_stationary, label=r"Actual $\Delta \log(GDP)$", color="orange")
+        plt.plot(flattened_val_dates, validation_mean_change, label=r"Mean $\Delta \log(GDP)$", color="blue")
         plt.title(r"Validation Predictions vs Actual $\Delta \log(GDP)$")
         plt.xlabel("Date")
         plt.ylabel(r"$\Delta \log(GDP)$")
@@ -721,10 +593,15 @@ def train_and_evaluate_model(md_train_stationary, qd_train_stationary, feature_s
         plt.savefig(f"{loss_plot_dir}/validation_predictions_full_untransformed.png")
         plt.close()
 
-        # Plot validation predictions in percentage growth
+        # Percentage change plot
         plt.figure(figsize=(12, 6))
-        plt.plot(repeated_val_dates, (validation_predictions_usd / gdp_qd_val.values.repeat(prediction_repetitions)) - 1, label=r"Predicted $\% \Delta GDP$", color="green")
-        plt.plot(val_dates, (validation_ground_truth_usd / gdp_qd_val.values) - 1, label=r"Actual $\% \Delta GDP$", color="orange")
+        val_ground_truth_skip_last = validation_ground_truth[:-1]
+        val_ground_truth_skip_last_repeat = val_ground_truth_skip_last.repeat(prediction_repetitions)
+        # plt.plot(repeated_val_dates[prediction_repetitions:], (validation_predictions[prediction_repetitions:] - val_ground_truth_skip_last_repeat) / val_ground_truth_skip_last_repeat, label=r"Predicted $\% \Delta GDP$", color="green")
+        # plt.plot(flattened_val_dates[1:], (validation_ground_truth[1:] - val_ground_truth_skip_last) / val_ground_truth_skip_last, label=r"Actual $\% \Delta GDP$", color="orange")
+        # plt.plot(flattened_val_dates[1:], (validation_mean_predictions[1:] - val_ground_truth_skip_last) / val_ground_truth_skip_last, label=r"Mean $\% \Delta GDP$", color="blue")
+        plt.plot(repeated_val_dates, (validation_predictions / gdp_qd.values.repeat(prediction_repetitions)) - 1, label=r"Predicted $\% \Delta GDP$", color="green")
+        plt.plot(flattened_val_dates, (validation_ground_truth / gdp_qd.values) - 1, label=r"Actual $\% \Delta GDP$", color="orange")
         # plt.plot(flattened_val_dates, (validation_mean_predictions - gdp_qd.values) / gdp_qd.values, label=r"Mean $\% \Delta GDP$", color="blue")
         plt.title(r"Predicted VS Actual Percentage GDP Growth")
         plt.xlabel("Date")
@@ -735,77 +612,19 @@ def train_and_evaluate_model(md_train_stationary, qd_train_stationary, feature_s
         plt.savefig(f"{loss_plot_dir}/validation_predictions_percentage_growth.png")
         plt.close()
 
-        # Plot test predictions in billion USD
-        plt.figure(figsize=(12, 6))
-        plt.plot(repeated_test_dates, test_predictions_usd, label="Predicted GDP", color="green")
-        plt.plot(test_dates, test_ground_truth_usd, label="Actual GDP", color="orange")
-        # plt.plot(test_dates, test_mean_predictions_usd, label="Assuming mean GDP growth", color="blue")
-        plt.title("Test Predictions vs Actual GDP in billion USD")
-        plt.xlabel("Date")
-        plt.ylabel("GDP (billion USD)")
-        plt.legend()
-        plt.xticks(rotation=45)
-        plt.grid(True)
-        plt.savefig(f"{loss_plot_dir}/test_predictions_full.png")
-        plt.close()
-
-        # Plot test predictions in delta-log
-        plt.figure(figsize=(12, 6))
-        plt.plot(repeated_test_dates, test_predictions_diff_log, label=r"Predicted $\Delta \log(GDP)$", color="green")
-        plt.plot(test_dates, test_ground_truth_diff_log, label=r"Actual $\Delta \log(GDP)$", color="orange")
-        # plt.plot(test_dates, test_mean_diff_log, label=r"Mean $\Delta \log(GDP)$", color="blue")
-        plt.title(r"Test Predictions vs Actual $\Delta \log(GDP)$")
-        plt.xlabel("Date")
-        plt.ylabel(r"$\Delta \log(GDP)$")
-        plt.legend()
-        plt.xticks(rotation=45)
-        plt.grid(True)
-        plt.savefig(f"{loss_plot_dir}/test_predictions_full_untransformed.png")
-        plt.close()
-
-        # Plot test predictions in percentage growth
-        plt.figure(figsize=(12, 6))
-        plt.plot(repeated_test_dates, (test_predictions_usd / gdp_qd_test.values.repeat(prediction_repetitions)) - 1, label=r"Predicted $\% \Delta GDP$", color="green")
-        plt.plot(test_dates, (test_ground_truth_usd / gdp_qd_test.values) - 1, label=r"Actual $\% \Delta GDP$", color="orange")
-        # plt.plot(test_dates, (test_mean_predictions_usd / gdp_qd_test.values) - 1, label=r"Mean $\% \Delta GDP$", color="blue")
-        plt.title(r"Predicted VS Actual Percentage GDP Growth")
-        plt.xlabel("Date")
-        plt.ylabel(r"$\% \Delta GDP$")
-        plt.legend()
-        plt.xticks(rotation=45)
-        plt.grid(True)
-        plt.savefig(f"{loss_plot_dir}/test_predictions_percentage_growth.png")
-        plt.close()
-
         with open(f"{loss_plot_dir}/val_loss {start_of_train_run}.txt", "w") as f:
             f.write(f"Lowest validation losses per fold: {lowest_validation_losses}\n")
-            lowest_validation_losses = np.array(lowest_validation_losses)
-            print(lowest_validation_losses)
-            f.write(f"Average: {np.mean(lowest_validation_losses)}\n")
-            f.write(f"RMSE: {np.sqrt(np.mean(lowest_validation_losses))}\n")
-            # f.write(f"Min: {min(lowest_validation_losses)}\n")
-            # f.write(f"Max: {max(lowest_validation_losses)}\n")
-            f.write(f"Unpreprocessed MAE: {mean_absolute_error(validation_ground_truth_usd.repeat(prediction_repetitions), validation_predictions_usd)}\n")
-            f.write(f"Unpreprocessed RMSE: {root_mean_squared_error(validation_ground_truth_usd.repeat(prediction_repetitions), validation_predictions_usd)}\n")
-            f.write(f"Mean-predict Unpreprocessed MAE: {mean_absolute_error(validation_ground_truth_usd, validation_mean_predictions_usd)}\n")
-            f.write(f"Mean-predict Unpreprocessed RMSE: {root_mean_squared_error(validation_ground_truth_usd, validation_mean_predictions_usd)}\n")
-            f.write(f"Transformed MAE: {mean_absolute_error(validation_ground_truth_diff_log.repeat(prediction_repetitions), validation_predictions_diff_log)}\n")
-            f.write(f"Transformed RMSE: {root_mean_squared_error(validation_ground_truth_diff_log.repeat(prediction_repetitions), validation_predictions_diff_log)}\n")
-            f.write(f"Mean-predict Transformed MAE: {mean_absolute_error(validation_ground_truth_diff_log, validation_mean_diff_log)}\n")
-            f.write(f"Mean-predict Transformed RMSE: {root_mean_squared_error(validation_ground_truth_diff_log, validation_mean_diff_log)}\n")
-
-            f.write("\n")
-            f.write(f"Test RMSE: {median_test_predictions['rmse']}\n")
-            f.write(f"Test MAE: {median_test_predictions['mae']}\n")
-            f.write(f"Unpreprocessed Test MAE: {mean_absolute_error(test_ground_truth_usd.repeat(prediction_repetitions), test_predictions_usd)}\n")
-            f.write(f"Unpreprocessed Test RMSE: {root_mean_squared_error(test_ground_truth_usd.repeat(prediction_repetitions), test_predictions_usd)}\n")
-            f.write(f"Mean-predict Unpreprocessed Test MAE: {mean_absolute_error(test_ground_truth_usd, test_mean_predictions_usd)}\n")
-            f.write(f"Mean-predict Unpreprocessed Test RMSE: {root_mean_squared_error(test_ground_truth_usd, test_mean_predictions_usd)}\n")
-            f.write(f"Transformed Test MAE: {mean_absolute_error(test_ground_truth_diff_log.repeat(prediction_repetitions), test_predictions_diff_log)}\n")
-            f.write(f"Transformed Test RMSE: {root_mean_squared_error(test_ground_truth_diff_log.repeat(prediction_repetitions), test_predictions_diff_log)}\n")
-            f.write(f"Mean-predict Test MAE: {mean_absolute_error(test_ground_truth_diff_log, test_mean_diff_log)}\n")
-            f.write(f"Mean-predict Test RMSE: {root_mean_squared_error(test_ground_truth_diff_log, test_mean_diff_log)}\n")
-
+            f.write(f"Average: {sum(lowest_validation_losses) / len(lowest_validation_losses)}\n")
+            f.write(f"Min: {min(lowest_validation_losses)}\n")
+            f.write(f"Max: {max(lowest_validation_losses)}\n")
+            f.write(f"Unpreprocessed MAE: {mean_absolute_error(validation_ground_truth.repeat(prediction_repetitions), validation_predictions)}\n")
+            f.write(f"Unpreprocessed RMSE: {root_mean_squared_error(validation_ground_truth.repeat(prediction_repetitions), validation_predictions)}\n")
+            f.write(f"Mean-predict Unpreprocessed MAE: {mean_absolute_error(validation_ground_truth, validation_mean_predictions)}\n")
+            f.write(f"Mean-predict Unpreprocessed RMSE: {root_mean_squared_error(validation_ground_truth, validation_mean_predictions)}\n")
+            f.write(f"Transformed MAE: {mean_absolute_error(validation_ground_truth_stationary.repeat(prediction_repetitions), validation_predictions_stationary)}\n")
+            f.write(f"Transformed RMSE: {root_mean_squared_error(validation_ground_truth_stationary.repeat(prediction_repetitions), validation_predictions_stationary)}\n")
+            f.write(f"Mean-predict Transformed MAE: {mean_absolute_error(validation_ground_truth_stationary, validation_mean_change)}\n")
+            f.write(f"Mean-predict Transformed RMSE: {root_mean_squared_error(validation_ground_truth_stationary, validation_mean_change)}\n")
 
             f.write("\n")
 
@@ -817,15 +636,7 @@ def train_and_evaluate_model(md_train_stationary, qd_train_stationary, feature_s
             f.write(f"Selected Monthly Features: {", ".join(train_val_monthly.columns)}\n")
             f.write(f"Selected Quarterly Features: {", ".join(train_val_quarterly.columns)}\n")
 
-            for train_proportion, stats, in best_epoch.items():
-                f.write("\n")
-                f.write(f"Train proportion: {train_proportion}%\n")
-
-                sorted_stats = sorted(stats, key=lambda stat: stat['val_loss'])
-                for stat in sorted_stats:
-                    f.write(f"Best Epoch: {stat['epoch']}, Validation Loss: {stat['val_loss']}\n")
-
-    return lowest_validation_losses, lowest_train_losses
+    return lowest_validation_losses
 
 def plot_loss(loss_plot_dir, month_start_training_data, month_end_training_data, month_end_validation_data, history, verbose=True):
     loss_plot_filename = f"{loss_plot_dir}/from_{month_start_training_data}_to_{month_end_training_data}_to_{month_end_validation_data}.png"
@@ -917,7 +728,7 @@ def plot_scaled_data(train_monthly_scaled, val_monthly_scaled, train_quarterly_s
 
 if __name__ == "__main__":
     md_train_stationary, qd_train_stationary = load_train_data()
-    md_test_stationary, qd_test_stationary = load_test_data()
+
 
     from multivariate_RNN import instantiate_multivariate_model, create_datapoints_multivariate
     from univariate_RNN import instantiate_univariate_model, create_datapoints_univariate
@@ -930,10 +741,6 @@ if __name__ == "__main__":
     train_and_evaluate_model(
         md_train_stationary,
         qd_train_stationary,
-        md_test_stationary=md_test_stationary,
-        qd_test_stationary=qd_test_stationary,
-        sequence_length=12,
-
         feature_selection_method='lasso',
         dropout_rate=0.14959366179554065,
         optimizer='adam',
@@ -942,20 +749,12 @@ if __name__ == "__main__":
         learning_rate=0.0038974266096597505,
         add_recession_feature=True,
         n_features=15,
-
-        # feature_selection_method='lasso',
-        # dropout_rate=0.24968606797287904,
-        # optimizer='adam',
-        # batch_size=16,
-        # hidden_units=32,
-        # learning_rate=0.007972544770044396,
-        # add_recession_feature=False,
-        # n_features=13,
-
+        sequence_length=12,
         instantiate_model=partial(model, Rnn=rnn),
         model_description=f"{model.__name__}; {rnn.__name__}",
-        verbose=True,
         create_datapoints=datapoints,
+        verbose=True,
+
     )
 # HIER!
 # Best trial:
@@ -969,7 +768,7 @@ if __name__ == "__main__":
 #     learning_rate: 0.0038974266096597505
 #     add_recession_feat True
 #     n_features: 15
-#
+# 
 # Value: 0.34775702841579914
 #   Params:
 #     feature_selection_method: lasso

@@ -64,6 +64,8 @@ full_train_val_size = 100
 lowest_validation_losses = []
 validation_predictions_per_split = []
 
+rmses = []
+
 for train_proportion in range(initial_train_size, full_train_val_size, val_size):
     train_end = int(len(train_data_univariate) * (train_proportion / full_train_val_size))
     train = train_data_univariate.iloc[:train_end]
@@ -86,8 +88,10 @@ for train_proportion in range(initial_train_size, full_train_val_size, val_size)
 
         # Append the true value to the history for the next iteration
         history.append(true_value)
-
-    print("RMSE:", root_mean_squared_error(forecasts, history))
+    
+    rmse = root_mean_squared_error(forecasts, history)
+    print("RMSE:", rmse)
+    rmses.append(rmse)
 
     plt.plot(history, label="True Values", color="orange")
     plt.plot(forecasts, label="Forecasts", color="green")
@@ -99,6 +103,8 @@ for train_proportion in range(initial_train_size, full_train_val_size, val_size)
 
     print("history:", history)
     print("forecasts:", forecasts)
+
+print("Mean RMSE:", np.mean(rmses))
 
 # boxcox_diff_pred = model.forecast(len(val))
 # # Inverse Box-Cox transformation

@@ -116,9 +116,9 @@ def load_data(split):
 
     assert split in ["train", "test"], "Invalid split. Choose 'train' or 'test'."
 
-    train_monthly = pd.read_csv(f"FRED_md_{split}_cleaned_transformed.csv", index_col=0, parse_dates=True, date_format="%Y-%m-%d")
-    train_quarterly = pd.read_csv(f"FRED_qd_{split}_cleaned_transformed.csv", index_col=0, parse_dates=True, date_format="%Y-%m-%d")
-    return train_monthly, train_quarterly
+    df_monthly = pd.read_csv(f"FRED_md_{split}_cleaned_transformed.csv", index_col=0, parse_dates=True, date_format="%Y-%m-%d")
+    df_quarterly = pd.read_csv(f"FRED_qd_{split}_cleaned_transformed.csv", index_col=0, parse_dates=True, date_format="%Y-%m-%d")
+    return df_monthly, df_quarterly
 
 def load_train_data(): return load_data("train")
 def load_test_data(): return load_data("test")

@@ -64,7 +64,7 @@ def main():
         md_train, qd_train = load_train_data()
 
         # Call the training function with the hyperparameters
-        val_losses = train_and_evaluate_model(
+        val_losses, train_losses = train_and_evaluate_model(
             md_train, qd_train,
             feature_selection_method=feature_selection_method,
             n_features=n_features,
@@ -81,8 +81,10 @@ def main():
             model_description=f"{model_id}; {rnn_name}"
         )
 
+        print(sum(train_losses) / len(train_losses))
         print(sum(val_losses) / len(val_losses))
     except Exception as e:
+        print("inf")
         print("inf")
         print(e, file=sys.stderr)
 

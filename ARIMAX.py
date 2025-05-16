@@ -1,4 +1,4 @@
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, root_mean_squared_error
 import tensorflow as tf
 import pandas as pd
 import numpy as np
@@ -127,11 +127,66 @@ def train_arimax_with_expanding_window(md_train, qd_train, exogenous_data, initi
     
     return models
 
-# Example usage
-fitted_arimax = train_arimax_with_exogenous(md_train_stationary, qd_train_stationary, exogenous_data=pd.DataFrame())
-print(fitted_arimax.summary())
+def arimax_train_predict(md_train: pd.DataFrame, qd_train: pd.DataFrame, initial_window=12, step=1):
+    md = md_train.groupby(md_train.index.map(lambda date: date - pd.DateOffset(months=date.month % 3))).sum()[1:]
+    print("Monthly data shape:", md.shape)
+    print("Quarterly data shape:", qd_train.shape)
+    print("Monthly index:", md.index)
+    print("Quarterly index:", qd_train.index)
 
-fitted_models = train_arimax_with_expanding_window(md_train_stationary, qd_train_stationary, exogenous_data=pd.DataFrame(), initial_window=24, step=6)
-for i, model in enumerate(fitted_models):
-    print(f"Model {i + 1} Summary:")
-    print(model.summary())
+    data = pd.concat([md, qd_train], axis=1)
+
+    endogenous_data = data[["GDPC1"]]
+    exogenous_data = data.drop(columns=["GDPC1"])
+
+    print("Endogenous data shape:", endogenous_data.shape)
+    print("Exogenous data shape:", exogenous_data.shape)
+
+    train_size = int(len(endogenous_data) * 0.8)
+
+    endogenous_data_train = endogenous_data[:train_size]
+    exogenous_data_train = exogenous_data[:train_size]
+    endogenous_data_val = endogenous_data[train_size:]
+    exogenous_data_val = exogenous_data[train_size:]
+
+    model = ARIMA(endog=endogenous_data_train, exog=exogenous_data_train, order=(5, 0, 3))
+    trained_model: ARIMAResults = model.fit()
+
+    forecasts = []
+
+    # copy the training data to use for recursive forecasting
+    history = []  # convert to a list for appending new values
+
+    # recursive forecasting
+    for i in range(1, len(endogenous_data_val)):
+        true_value = endogenous_data_val.iloc[i]
+        forecast = trained_model.forecast(steps=i, exog=exogenous_data_val[:i], endog=endogenous_data_val[:i])[0]
+
+        # print(len(exogenous_data_val))
+        # print(len(endogenous_data_val))
+        # forecast = trained_model.forecast(steps=1, exog=exogenous_data_val.iloc[i])[0]
+        forecasts.append(forecast)
+
+        # trained_model = trained_model.append([endogenous_data_val.iloc[i]], [exogenous_data_val.iloc[i]], refit=False)
+
+        # append the true value to the history for the next iteration
+        history.append(true_value)
+    
+    rmse = root_mean_squared_error(forecasts, history)
+    rmse_baseline = root_mean_squared_error(np.mean(history).repeat(len(history)), history)
+    print("RMSE:", rmse)
+    print("RMSE Baseline:", rmse_baseline)
+
+def main():
+    # Example usage
+    fitted_arimax = train_arimax_with_exogenous(md_train_stationary, qd_train_stationary, exogenous_data=pd.DataFrame())
+    print(fitted_arimax.summary())
+
+    fitted_models = train_arimax_with_expanding_window(md_train_stationary, qd_train_stationary, exogenous_data=pd.DataFrame(), initial_window=24, step=6)
+    for i, model in enumerate(fitted_models):
+        print(f"Model {i + 1} Summary:")
+        print(model.summary())
+
+if __name__ == "__main__":
+    md_train_stationary, qd_train_stationary = load_train_data()
+    arimax_train_predict(md_train_stationary, qd_train_stationary)
