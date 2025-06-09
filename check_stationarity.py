@@ -2,6 +2,8 @@ import pandas as pd
 from statsmodels.tsa.stattools import adfuller
 import matplotlib.pyplot as plt
 import numpy as np
+from functools import partial
+from feature_selection import map_month_to_quarter
 
 def preprocess_data(verbose=False):
     """
@@ -15,8 +17,8 @@ def preprocess_data(verbose=False):
     fred_md = pd.read_csv("FRED_md_cleaned_transformed.csv", index_col=0, parse_dates=True, date_format="%Y-%m-%d")
     fred_qd = pd.read_csv("FRED_qd_cleaned_transformed.csv", index_col=0, parse_dates=True, date_format="%Y-%m-%d")
 
-    fred_md = fred_md.loc[:'2019-12-31']
-    fred_qd = fred_qd.loc[:'2019-12-31']
+    fred_md = fred_md.loc[:'2019-12-30']
+    fred_qd = fred_qd.loc[:'2019-12-30']
 
     print(min(fred_md.index), max(fred_md.index))
     print(min(fred_qd.index), max(fred_qd.index))
@@ -123,10 +125,24 @@ def load_data(split):
 def load_train_data(): return load_data("train")
 def load_test_data(): return load_data("test")
 
+def create_averaged_md_datasets():
+    """
+    Create summed monthly datasets for each quarter.
+    """
+    train_monthly, train_quarterly = load_train_data()
+
+    for lookahead_months in range(3):
+        quarter = train_monthly.index.map(partial(map_month_to_quarter, lookahead_months=lookahead_months))
+        md_summed = train_monthly.groupby(quarter).mean()
+        md_summed = md_summed.loc[train_quarterly.index]
+
+        md_summed.to_csv(f"FRED_md_train_monthly_averaged_lookahead={lookahead_months}months.csv")
+
 if __name__ == "__main__":
     import sys
     verbose = "--verbose" in sys.argv
     final_monthly_stationary, final_quarterly_stationary = preprocess_data(verbose)
+    create_averaged_md_datasets()
 
     if verbose:
         # Output dataset shapes and preview

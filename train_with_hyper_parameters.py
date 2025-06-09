@@ -3,7 +3,7 @@ import sys
 from lstm_123 import train_and_evaluate_model, instantiate_model_duplicate_qd, instantiate_model_multilayer, instantiate_model_alternating_rnn, create_datapoints_lstm_1_2_and_3
 from univariate_RNN import instantiate_univariate_model, create_datapoints_univariate
 from multivariate_RNN import instantiate_multivariate_model, create_datapoints_multivariate
-from check_stationarity import load_train_data
+from check_stationarity import load_train_data, load_test_data
 
 from keras import layers
 from functools import partial
@@ -62,10 +62,13 @@ def main():
             rnn = layers.GRU
 
         md_train, qd_train = load_train_data()
+        md_test, qd_test = load_test_data()
 
         # Call the training function with the hyperparameters
         val_losses, train_losses = train_and_evaluate_model(
             md_train, qd_train,
+            md_test_stationary=md_test, qd_test_stationary=qd_test,
+
             feature_selection_method=feature_selection_method,
             n_features=n_features,
             dropout_rate=dropout_rate,
@@ -87,6 +90,8 @@ def main():
         print("inf")
         print("inf")
         print(e, file=sys.stderr)
+        import traceback
+        print(traceback.print_exc(), file=sys.stderr)
 
 def read_str(name):
     idx = sys.argv.index(name)

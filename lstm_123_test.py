@@ -208,26 +208,7 @@ def instantiate_model_alternating_rnn(sequence_length, n_monthly_features, n_qua
 
     return model
 
-def train_and_evaluate_model(
-    md_train_stationary, 
-    qd_train_stationary, 
-    feature_selection_method, 
-    n_features, 
-    dropout_rate, 
-    optimizer, 
-    batch_size, 
-    hidden_units, 
-    sequence_length, 
-    learning_rate, 
-    add_recession_feature=True, 
-    instantiate_model=instantiate_model_multilayer, 
-    create_datapoints=create_datapoints_lstm_1_2_and_3, 
-    max_epochs=40, 
-    verbose=True, 
-    model_description=None, 
-    md_test_stationary=None, 
-    qd_test_stationary=None
-):
+def train_and_evaluate_model(md_train_stationary, qd_train_stationary, feature_selection_method, n_features, dropout_rate, optimizer, batch_size, hidden_units, sequence_length, learning_rate, add_recession_feature=True, instantiate_model=instantiate_model_multilayer, create_datapoints=create_datapoints_lstm_1_2_and_3, max_epochs=40, verbose=True, model_description=None, md_test_stationary=None, qd_test_stationary=None):
     if fast_mode:
         md_train_stationary = md_train_stationary.iloc[:300]
         qd_train_stationary = qd_train_stationary.iloc[:100]
@@ -237,7 +218,7 @@ def train_and_evaluate_model(
 
     start_of_train_run = datetime.datetime.now().strftime("%Y-%m-%d %Hh%Mm%Ss")
 
-    base_seed = 2571267 + 12093871 + 31
+    base_seed = 2571267# + 12093871
     set_seed(base_seed)
 
     param_dict = {
@@ -376,25 +357,30 @@ def train_and_evaluate_model(
     best_epoch = {}
     test_predictions = []
 
-    for train_proportion in range(initial_train_size, full_train_val_size, val_size):
+    for train_proportion in range(1): # range(initial_train_size, full_train_val_size, val_size):
+        train_proportion = 100
         set_seed(base_seed + (hash(train_proportion) + hash(91647)) % 100_000_000)
 
-        should_eval_test_set = has_test_data and train_proportion + val_size >= full_train_val_size
+        should_eval_test_set = True # has_test_data and train_proportion + val_size >= full_train_val_size
         best_epoch[train_proportion] = []
         validation_predictions_current_split = []
 
         tf.keras.backend.clear_session()
-        # Split training and validation sets
+        # Step 6: Split training and validation sets
         end_train_data_idx = int(number_of_quarters * train_proportion / full_train_val_size)
         end_val_data_idx = int(number_of_quarters * (train_proportion + val_size) / full_train_val_size)
         if verbose:
             print(f"end_train_data_idx: {end_train_data_idx}, end_val_data_idx: {end_val_data_idx}, number of quarters in val: {end_val_data_idx - end_train_data_idx}")
 
-        train_monthly = train_val_monthly.iloc[:end_train_data_idx * 3]
-        val_monthly = train_val_monthly.iloc[end_train_data_idx * 3:end_val_data_idx * 3]
+        train_monthly = train_val_monthly# .iloc[:end_train_data_idx * 3]
+        # val_monthly = train_val_monthly.iloc[end_train_data_idx * 3:end_val_data_idx * 3]
+        val_monthly = test_monthly
 
-        train_quarterly = train_val_quarterly.iloc[:end_train_data_idx]
-        val_quarterly = train_val_quarterly.iloc[end_train_data_idx:end_val_data_idx]
+        # train_quarterly = train_val_quarterly.iloc[:end_train_data_idx]
+        # val_quarterly = train_val_quarterly.iloc[end_train_data_idx:end_val_data_idx]
+        train_quarterly = train_val_quarterly# .iloc[:end_train_data_idx]
+        # val_quarterly = train_val_quarterly.iloc[end_train_data_idx:end_val_data_idx]
+        val_quarterly = test_quarterly
 
         month_start_training_data = train_monthly.index[0].strftime("%Y-%m")
         month_end_training_data = train_monthly.index[-1].strftime("%Y-%m")
@@ -483,6 +469,8 @@ def train_and_evaluate_model(
 
             plot_scaled_data(train_monthly_scaled, val_monthly_scaled, train_quarterly_scaled, val_quarterly_scaled)
 
+        # Step 1: Initialize empty lists for x and y
+
         x_train_monthly, x_train_quarterly, x_train_shift, y_train, _ = create_datapoints(train_monthly_scaled, train_quarterly_scaled, sequence_length)
         if verbose:
             print("x_train_md shape:", x_train_monthly.shape)
@@ -503,10 +491,8 @@ def train_and_evaluate_model(
 
         if not fast_mode:
             training_repetition_count = 5
-            median_idx = 2
         else:
             training_repetition_count = 3
-            median_idx = 1
         val_losses = [] # we are gonna train it 5 times and take the average of the second and third best model for increased stability
         train_losses = []
 
@@ -558,14 +544,14 @@ def train_and_evaluate_model(
                 validation_data=([x_val_monthly, x_val_quarterly, x_val_shift], tf.repeat(y_val, 3, -1)),
                 epochs=max_epochs,
                 batch_size=batch_size,
-                verbose=0,#1 if verbose else 0,
+                verbose=1 if verbose else 0,
                 shuffle=True,
                 callbacks=[early_stopping],
             )
 
             plot_loss(loss_plot_dir, month_start_training_data, month_end_training_data, month_end_validation_data, history, verbose=verbose)
 
-            # Evaluate the model on validation data
+            # Step 3: Evaluate the model on validation data
             val_loss = np.mean(model.evaluate([x_val_monthly, x_val_quarterly, x_val_shift], y_val, verbose=0))
             train_loss = np.mean(model.evaluate([x_train_monthly, x_train_quarterly, x_train_shift], y_train, verbose=0))
             val_losses.append(val_loss)
@@ -615,10 +601,10 @@ def train_and_evaluate_model(
         val_losses.sort()
         # lowest_validation_losses.append(sum(val_losses[1:-1]) / (training_repetition_count - 2))
         # lowest_validation_losses.append(np.sum(val_losses[1:-1], axis=0) / (training_repetition_count - 2))
-        lowest_validation_losses.append(np.mean(val_losses[1:-1]))
+        lowest_validation_losses.append(val_losses[1])
         train_losses.sort()
         # lowest_train_losses.append(sum(train_losses[1:-1]) / (training_repetition_count - 2))
-        lowest_train_losses.append(train_losses[median_idx])
+        lowest_train_losses.append(train_losses[1])
 
 
         best_validation_run = 0
@@ -630,10 +616,13 @@ def train_and_evaluate_model(
                 best_validation_run = i
 
         validation_predictions_current_split.sort(key=lambda x: x[0])
-        validation_predictions_per_split.append(validation_predictions_current_split[median_idx]) # Select second best prediction
+        validation_predictions_per_split.append(validation_predictions_current_split[1]) # Select second best prediction
+
+
+    median_test_predictions = test_predictions[best_validation_run]
 
     test_predictions.sort(key=lambda x: x['rmse'])
-    median_test_predictions = test_predictions[median_idx]
+    median_test_predictions = test_predictions[1]
     # median_test_predictions = test_predictions[1]
     # best_test_predictions = test_predictions[0]
 
@@ -645,6 +634,7 @@ def train_and_evaluate_model(
 
     pr = np.array([list(p) for _, ps, _, _, _ in validation_predictions_per_split for p in ps])
     gt = np.array([list(y) for _, _, ys, _, _ in validation_predictions_per_split for y in ys])
+    print(pr)
     print(pr.shape)
     print(pr.dtype)
 
@@ -709,7 +699,7 @@ def train_and_evaluate_model(
         plt.figure(figsize=(12, 6))
         plt.plot(repeated_val_dates, validation_predictions_usd, label="Predicted GDP", color="green")
         plt.plot(val_dates, validation_ground_truth_usd, label="Actual GDP", color="orange")
-        plt.plot(val_dates, validation_mean_predictions_usd, label="Assuming mean GDP growth", color="blue")
+        # plt.plot(val_dates, validation_mean_predictions_usd, label="Assuming mean GDP growth", color="blue")
         plt.title("Validation Predictions vs Actual GDP in billion USD")
         plt.xlabel("Date")
         plt.ylabel("GDP (billion USD)")
@@ -726,7 +716,7 @@ def train_and_evaluate_model(
         plt.figure(figsize=(12, 6))
         plt.plot(repeated_val_dates, validation_predictions_diff_log, label=r"Predicted $\Delta \log(GDP)$", color="green")
         plt.plot(val_dates, validation_ground_truth_diff_log, label=r"Actual $\Delta \log(GDP)$", color="orange")
-        plt.plot(val_dates, validation_mean_diff_log, label=r"Mean $\Delta \log(GDP)$", color="blue")
+        # plt.plot(val_dates, validation_mean_diff_log, label=r"Mean $\Delta \log(GDP)$", color="blue")
         plt.title(r"Validation Predictions vs Actual $\Delta \log(GDP)$")
         plt.xlabel("Date")
         plt.ylabel(r"$\Delta \log(GDP)$")
@@ -740,7 +730,7 @@ def train_and_evaluate_model(
         plt.figure(figsize=(12, 6))
         plt.plot(repeated_val_dates, (validation_predictions_usd / gdp_qd_val.values.repeat(prediction_repetitions)) - 1, label=r"Predicted $\% \Delta GDP$", color="green")
         plt.plot(val_dates, (validation_ground_truth_usd / gdp_qd_val.values) - 1, label=r"Actual $\% \Delta GDP$", color="orange")
-        plt.plot(val_dates, (validation_mean_predictions_usd / gdp_qd_val.values) - 1, label=r"Mean $\% \Delta GDP$", color="blue")
+        # plt.plot(flattened_val_dates, (validation_mean_predictions - gdp_qd.values) / gdp_qd.values, label=r"Mean $\% \Delta GDP$", color="blue")
         plt.title(r"Predicted VS Actual Percentage GDP Growth")
         plt.xlabel("Date")
         plt.ylabel(r"$\% \Delta GDP$")
@@ -754,7 +744,7 @@ def train_and_evaluate_model(
         plt.figure(figsize=(12, 6))
         plt.plot(repeated_test_dates, test_predictions_usd, label="Predicted GDP", color="green")
         plt.plot(test_dates, test_ground_truth_usd, label="Actual GDP", color="orange")
-        plt.plot(test_dates, test_mean_predictions_usd, label="Assuming mean GDP growth", color="blue")
+        # plt.plot(test_dates, test_mean_predictions_usd, label="Assuming mean GDP growth", color="blue")
         plt.title("Test Predictions vs Actual GDP in billion USD")
         plt.xlabel("Date")
         plt.ylabel("GDP (billion USD)")
@@ -768,7 +758,7 @@ def train_and_evaluate_model(
         plt.figure(figsize=(12, 6))
         plt.plot(repeated_test_dates, test_predictions_diff_log, label=r"Predicted $\Delta \log(GDP)$", color="green")
         plt.plot(test_dates, test_ground_truth_diff_log, label=r"Actual $\Delta \log(GDP)$", color="orange")
-        plt.plot(test_dates, test_mean_diff_log, label=r"Mean $\Delta \log(GDP)$", color="blue")
+        # plt.plot(test_dates, test_mean_diff_log, label=r"Mean $\Delta \log(GDP)$", color="blue")
         plt.title(r"Test Predictions vs Actual $\Delta \log(GDP)$")
         plt.xlabel("Date")
         plt.ylabel(r"$\Delta \log(GDP)$")
@@ -782,7 +772,7 @@ def train_and_evaluate_model(
         plt.figure(figsize=(12, 6))
         plt.plot(repeated_test_dates, (test_predictions_usd / gdp_qd_test.values.repeat(prediction_repetitions)) - 1, label=r"Predicted $\% \Delta GDP$", color="green")
         plt.plot(test_dates, (test_ground_truth_usd / gdp_qd_test.values) - 1, label=r"Actual $\% \Delta GDP$", color="orange")
-        plt.plot(test_dates, (test_mean_predictions_usd / gdp_qd_test.values) - 1, label=r"Mean $\% \Delta GDP$", color="blue")
+        # plt.plot(test_dates, (test_mean_predictions_usd / gdp_qd_test.values) - 1, label=r"Mean $\% \Delta GDP$", color="blue")
         plt.title(r"Predicted VS Actual Percentage GDP Growth")
         plt.xlabel("Date")
         plt.ylabel(r"$\% \Delta GDP$")
@@ -792,37 +782,10 @@ def train_and_evaluate_model(
         plt.savefig(f"{loss_plot_dir}/test_predictions_percentage_growth.png")
         plt.close()
 
-        with open(f"{loss_plot_dir}/val_loss {start_of_train_run}.txt", "a") as f:
+        with open(f"{loss_plot_dir}/val_loss {start_of_train_run}.txt", "w") as f:
             f.write(f"Lowest validation losses per fold: {lowest_validation_losses}\n")
             lowest_validation_losses = np.array(lowest_validation_losses)
-            f.write(f"Average: {np.mean(lowest_validation_losses)}\n")
-            f.write(f"RMSE: {np.sqrt(np.mean(lowest_validation_losses))}\n")
-            # f.write(f"Min: {min(lowest_validation_losses)}\n")
-            # f.write(f"Max: {max(lowest_validation_losses)}\n")
-            f.write(f"Unpreprocessed MAE: {mean_absolute_error(validation_ground_truth_usd.repeat(prediction_repetitions), validation_predictions_usd)}\n")
-            f.write(f"Unpreprocessed RMSE: {root_mean_squared_error(validation_ground_truth_usd.repeat(prediction_repetitions), validation_predictions_usd)}\n")
-            f.write(f"Mean-predict Unpreprocessed MAE: {mean_absolute_error(validation_ground_truth_usd, validation_mean_predictions_usd)}\n")
-            f.write(f"Mean-predict Unpreprocessed RMSE: {root_mean_squared_error(validation_ground_truth_usd, validation_mean_predictions_usd)}\n")
-            f.write(f"Transformed MAE: {mean_absolute_error(validation_ground_truth_diff_log.repeat(prediction_repetitions), validation_predictions_diff_log)}\n")
-            f.write(f"Transformed RMSE: {root_mean_squared_error(validation_ground_truth_diff_log.repeat(prediction_repetitions), validation_predictions_diff_log)}\n")
-            f.write(f"Mean-predict Transformed MAE: {mean_absolute_error(validation_ground_truth_diff_log, validation_mean_diff_log)}\n")
-            f.write(f"Mean-predict Transformed RMSE: {root_mean_squared_error(validation_ground_truth_diff_log, validation_mean_diff_log)}\n")
-
-            f.write("\n")
-            f.write(f"Test RMSE: {median_test_predictions['rmse']}\n")
-            f.write(f"Test MAE: {median_test_predictions['mae']}\n")
-            f.write(f"Unpreprocessed Test MAE: {mean_absolute_error(test_ground_truth_usd.repeat(prediction_repetitions), test_predictions_usd)}\n")
-            f.write(f"Unpreprocessed Test RMSE: {root_mean_squared_error(test_ground_truth_usd.repeat(prediction_repetitions), test_predictions_usd)}\n")
-            f.write(f"Mean-predict Unpreprocessed Test MAE: {mean_absolute_error(test_ground_truth_usd, test_mean_predictions_usd)}\n")
-            f.write(f"Mean-predict Unpreprocessed Test RMSE: {root_mean_squared_error(test_ground_truth_usd, test_mean_predictions_usd)}\n")
-            f.write(f"Transformed Test MAE: {mean_absolute_error(test_ground_truth_diff_log.repeat(prediction_repetitions), test_predictions_diff_log)}\n")
-            f.write(f"Transformed Test RMSE: {root_mean_squared_error(test_ground_truth_diff_log.repeat(prediction_repetitions), test_predictions_diff_log)}\n")
-            f.write(f"Mean-predict Test MAE: {mean_absolute_error(test_ground_truth_diff_log, test_mean_diff_log)}\n")
-            f.write(f"Mean-predict Test RMSE: {root_mean_squared_error(test_ground_truth_diff_log, test_mean_diff_log)}\n")
-
-        with open(f"{loss_plot_dir}/val_loss {start_of_train_run}.txt", "a") as f:
-            f.write(f"Lowest validation losses per fold: {lowest_validation_losses}\n")
-            lowest_validation_losses = np.array(lowest_validation_losses)
+            print(lowest_validation_losses)
             f.write(f"Average: {np.mean(lowest_validation_losses)}\n")
             f.write(f"RMSE: {np.sqrt(np.mean(lowest_validation_losses))}\n")
             # f.write(f"Min: {min(lowest_validation_losses)}\n")
@@ -958,169 +921,67 @@ def plot_scaled_data(train_monthly_scaled, val_monthly_scaled, train_quarterly_s
         plt.show()
 
 if __name__ == "__main__":
-    # Parse command-line argument
-    import sys
-    
-    model_name = None
-    for i, arg in enumerate(sys.argv):
-        if arg == "--eval" and i + 1 < len(sys.argv):
-            model_name = sys.argv[i + 1].lower()
-            break
-
-    if model_name is None:
-        print("Usage: python lstm_123.py --eval <model>")
-        print("Available models: gru1, gru2, gru3, lstm1, lstm2, lstm3, multivariate_gru, multivariate_lstm, univariate_gru, univariate_lstm")
-        sys.exit(1)
-
     md_train_stationary, qd_train_stationary = load_train_data()
     md_test_stationary, qd_test_stationary = load_test_data()
 
     from multivariate_RNN import instantiate_multivariate_model, create_datapoints_multivariate
     from univariate_RNN import instantiate_univariate_model, create_datapoints_univariate
+    # datapoints = create_datapoints_multivariate
+    # model = instantiate_multivariate_model
+    datapoints = create_datapoints_lstm_1_2_and_3
+    model = instantiate_model_duplicate_qd
+    rnn = tf.keras.layers.GRU
 
-    configs = {
-        "gru1": dict(
-            feature_selection_method='lasso',
-            n_features=14,
-            dropout_rate=0.26473126503458194,
-            optimizer='adam',
-            batch_size=32,
-            hidden_units=64,
-            learning_rate=0.007922026556168792,
-            add_recession_feature=True,
-            instantiate_model=partial(instantiate_model_duplicate_qd, Rnn=tf.keras.layers.GRU),
-            model_description="GRU1",
-            create_datapoints=create_datapoints_lstm_1_2_and_3,
-        ),
-        "gru2": dict(
-            feature_selection_method='lasso',
-            n_features=13,
-            dropout_rate=0.3795713685036741,
-            optimizer='adam',
-            batch_size=64,
-            hidden_units=64,
-            learning_rate=0.0039072830004885945,
-            add_recession_feature=True,
-            instantiate_model=partial(instantiate_model_multilayer, Rnn=tf.keras.layers.GRU),
-            model_description="GRU2",
-            create_datapoints=create_datapoints_lstm_1_2_and_3,
-        ),
-        "gru3": dict(
-            feature_selection_method='lasso',
-            n_features=14,
-            dropout_rate=0.4541694231988055,
-            optimizer='adam',
-            batch_size=16,
-            hidden_units=64,
-            learning_rate=0.0038072480424024917,
-            add_recession_feature=True,
-            instantiate_model=partial(instantiate_model_alternating_rnn, Rnn=tf.keras.layers.GRU),
-            model_description="GRU3",
-            create_datapoints=create_datapoints_lstm_1_2_and_3,
-        ),
-        "multivariate_gru": dict(
-            feature_selection_method='lasso',
-            n_features=15,
-            dropout_rate=0.4718759792788254,
-            optimizer='adam',
-            batch_size=16,
-            hidden_units=64,
-            learning_rate=0.005080966177797974,
-            add_recession_feature=False,
-            instantiate_model=partial(instantiate_multivariate_model, Rnn=tf.keras.layers.GRU),
-            model_description="Multivariate GRU",
-            create_datapoints=create_datapoints_multivariate,
-        ),
-        "univariate_gru": dict(
-            feature_selection_method='none',  # If you use PCA, keep this; otherwise, adjust as needed
-            n_features=100,                  # Keep as before unless you have a new value
-            dropout_rate=0.23168946271367874,
-            optimizer='adam',
-            batch_size=32,
-            hidden_units=16,
-            learning_rate=0.006457314522932592,
-            add_recession_feature=False,
-            instantiate_model=partial(instantiate_univariate_model, Rnn=tf.keras.layers.GRU),
-            model_description="Univariate GRU",
-            create_datapoints=create_datapoints_univariate,
-        ),
-        "lstm1": dict(
-            feature_selection_method='lasso',
-            n_features=18,
-            dropout_rate=0.2586783399110758,
-            optimizer='adam',
-            batch_size=16,
-            hidden_units=32,
-            learning_rate=0.008420118343459052,
-            add_recession_feature=False,
-            instantiate_model=partial(instantiate_model_duplicate_qd, Rnn=tf.keras.layers.LSTM),
-            model_description="LSTM1",
-            create_datapoints=create_datapoints_lstm_1_2_and_3,
-        ),
-        "lstm2": dict(
-            feature_selection_method='lasso',
-            n_features=25,
-            dropout_rate=0.4620799007751671,
-            optimizer='adam',
-            batch_size=32,
-            hidden_units=64,
-            learning_rate=0.005104323173367261,
-            add_recession_feature=True,
-            instantiate_model=partial(instantiate_model_multilayer, Rnn=tf.keras.layers.LSTM),
-            model_description="LSTM2",
-            create_datapoints=create_datapoints_lstm_1_2_and_3,
-        ),
-        "lstm3": dict(
-            feature_selection_method='lasso',
-            n_features=19,
-            dropout_rate=0.24053423834450846,
-            optimizer='adam',
-            batch_size=32,
-            hidden_units=64,
-            learning_rate=0.0066183323272097205,
-            add_recession_feature=True,
-            instantiate_model=partial(instantiate_model_alternating_rnn, Rnn=tf.keras.layers.LSTM),
-            model_description="LSTM3",
-            create_datapoints=create_datapoints_lstm_1_2_and_3,
-        ),
-        "multivariate_lstm": dict(
-            feature_selection_method='lasso',
-            n_features=19,
-            dropout_rate=0.39637295528921196,
-            optimizer='adam',
-            batch_size=16,
-            hidden_units=64,
-            learning_rate=0.0047853935924974875,
-            add_recession_feature=False,
-            instantiate_model=partial(instantiate_multivariate_model, Rnn=tf.keras.layers.LSTM),
-            model_description="Multivariate LSTM",
-            create_datapoints=create_datapoints_multivariate,
-        ),
-        "univariate_lstm": dict(
-            feature_selection_method='none',
-            n_features=100,
-            dropout_rate=0.23168946271367874,
-            optimizer='adam',
-            batch_size=32,
-            hidden_units=16,
-            learning_rate=0.006457314522932592,
-            add_recession_feature=False,
-            instantiate_model=partial(instantiate_univariate_model, Rnn=tf.keras.layers.LSTM),
-            model_description="Univariate LSTM",
-            create_datapoints=create_datapoints_univariate,
-        ),
-    }
-
-    if model_name not in configs:
-        print("Unknown model:", model_name)
-        print("Available models:", ", ".join(configs.keys()))
-        sys.exit(1)
-
-    params = configs[model_name]
     train_and_evaluate_model(
-        md_train_stationary, qd_train_stationary,
-        md_test_stationary=md_test_stationary, qd_test_stationary=qd_test_stationary,
+        md_train_stationary,
+        qd_train_stationary,
+        md_test_stationary=md_test_stationary,
+        qd_test_stationary=qd_test_stationary,
         sequence_length=12,
+
+        feature_selection_method='lasso',
+        dropout_rate=0.14959366179554065,
+        optimizer='adam',
+        batch_size=64,
+        hidden_units=32,
+        learning_rate=0.0038974266096597505,
+        add_recession_feature=True,
+        n_features=15,
+
+        # feature_selection_method='lasso',
+        # dropout_rate=0.24968606797287904,
+        # optimizer='adam',
+        # batch_size=16,
+        # hidden_units=32,
+        # learning_rate=0.007972544770044396,
+        # add_recession_feature=False,
+        # n_features=13,
+
+        instantiate_model=partial(model, Rnn=rnn),
+        model_description=f"{model.__name__}; {rnn.__name__}",
         verbose=True,
-        **params
+        create_datapoints=datapoints,
     )
+# HIER!
+# Best trial:
+#   Value: 0.3440210397044818
+#   Params:
+#     feature_selection_method: lasso
+#     dropout_rate: 0.14959366179554065
+#     optimizer: adam
+#     batch_size: 64
+#     hidden_units: 32
+#     learning_rate: 0.0038974266096597505
+#     add_recession_feat True
+#     n_features: 15
+#
+# Value: 0.34775702841579914
+#   Params:
+#     feature_selection_method: lasso
+#     dropout_rate: 0.44987460958652215
+#     optimizer: adam
+#     batch_size: 16
+#     hidden_units: 32
+#     learning_rate: 0.002708068376809814
+#     add_recession_feature: True
+#     n_features: 16

@@ -229,17 +229,8 @@ def lasso_feature_selection(fred_qd_and_md_as_qd, target_column="GDPC1", alpha=0
     coefficients = lasso.coef_
     feature_coefficients = pd.Series(coefficients, index=X.columns)
 
-    # Sort coefficients in descending order
-    feature_coefficients = feature_coefficients.sort_values(ascending=False, key=lambda coeff: abs(coeff))
-
-    n_selected_features = len([c for c in feature_coefficients if c != 0])
-    return n_selected_features
-
     # Select features with non-zero coefficients
-    selected_features = feature_coefficients.index.tolist()[:n_features]
-
-    print("\nTop Features Selected by Lasso Regression:")
-    print(selected_features)
+    selected_features = feature_coefficients[feature_coefficients != 0].index.tolist()
 
     return selected_features, feature_coefficients
 
@@ -483,7 +474,8 @@ if __name__ == "__main__":
         if target_n_features not in n_features_to_alpha:
             print("missing", target_n_features)
         alpha = n_features_to_alpha[target_n_features]
-        found_n_features = lasso_feature_selection(fred_qd_and_md_as_qd, alpha=alpha)
+        f, c = lasso_feature_selection(fred_qd_and_md_as_qd, alpha=alpha)
+        found_n_features = len(f)
         if found_n_features != target_n_features:
             print("mismatch", target_n_features, found_n_features)
 
@@ -492,7 +484,8 @@ if __name__ == "__main__":
 
     n_features_to_alpha = {}
     while True:
-        n_selected = lasso_feature_selection(fred_qd_and_md_as_qd, alpha=alpha)
+        f, c = lasso_feature_selection(fred_qd_and_md_as_qd, alpha=alpha)
+        found_n_features = len(f)
 
         n_features_to_alpha[n_selected] = alpha
 

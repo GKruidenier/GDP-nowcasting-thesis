@@ -1,0 +1,135 @@
+variable,group
+RPI,Group 1: Output and Income
+W875RX1,Group 1: Output and Income
+INDPRO,Group 1: Output and Income
+IPFPNSS,Group 1: Output and Income
+IPFINAL,Group 1: Output and Income
+IPCONGD,Group 1: Output and Income
+IPDCONGD,Group 1: Output and Income
+IPNCONGD,Group 1: Output and Income
+IPBUSEQ,Group 1: Output and Income
+IPMAT,Group 1: Output and Income
+IPDMAT,Group 1: Output and Income
+IPNMAT,Group 1: Output and Income
+IPMANSICS,Group 1: Output and Income
+IPB51222s,Group 1: Output and Income
+IPFUELS,Group 1: Output and Income
+NAPMPI,Group 1: Output and Income
+CUMFNS,Group 1: Output and Income
+HWI,Group 2: Labor Market
+HWIURATIO,Group 2: Labor Market
+CLF16OV,Group 2: Labor Market
+CE16OV,Group 2: Labor Market
+UNRATE,Group 2: Labor Market
+UEMPMEAN,Group 2: Labor Market
+UEMPLT5,Group 2: Labor Market
+UEMP5TO14,Group 2: Labor Market
+UEMP15OV,Group 2: Labor Market
+UEMP15T26,Group 2: Labor Market
+UEMP27OV,Group 2: Labor Market
+CLAIMSx,Group 2: Labor Market
+PAYEMS,Group 2: Labor Market
+USGOOD,Group 2: Labor Market
+CES1021000001,Group 2: Labor Market
+USCONS,Group 2: Labor Market
+MANEMP,Group 2: Labor Market
+DMANEMP,Group 2: Labor Market
+NDMANEMP,Group 2: Labor Market
+SRVPRD,Group 2: Labor Market
+USTPU,Group 2: Labor Market
+USWTRADE,Group 2: Labor Market
+USTRADE,Group 2: Labor Market
+USFIRE,Group 2: Labor Market
+USGOVT,Group 2: Labor Market
+CES0600000007,Group 2: Labor Market
+AWOTMAN,Group 2: Labor Market
+AWHMAN,Group 2: Labor Market
+NAPMEI,Group 2: Labor Market
+CES0600000008,Group 2: Labor Market
+CES2000000008,Group 2: Labor Market
+CES3000000008,Group 2: Labor Market
+HOUST,Group 3: Consumption and Orders
+HOUSTNE,Group 3: Consumption and Orders
+HOUSTMW,Group 3: Consumption and Orders
+HOUSTS,Group 3: Consumption and Orders
+HOUSTW,Group 3: Consumption and Orders
+PERMIT,Group 3: Consumption and Orders
+PERMITNE,Group 3: Consumption and Orders
+PERMITMW,Group 3: Consumption and Orders
+PERMITS,Group 3: Consumption and Orders
+PERMITW,Group 3: Consumption and Orders
+DPCERA3M086SBEA,Group 4: Orders and Inventories
+CMRMTSPLx,Group 4: Orders and Inventories
+RETAILx,Group 4: Orders and Inventories
+NAPM,Group 4: Orders and Inventories
+NAPMNOI,Group 4: Orders and Inventories
+NAPMSDI,Group 4: Orders and Inventories
+NAPMII,Group 4: Orders and Inventories
+ACOGNO,Group 4: Orders and Inventories
+AMDMNOx,Group 4: Orders and Inventories
+ANDENOx,Group 4: Orders and Inventories
+AMDMUOx,Group 4: Orders and Inventories
+BUSINVx,Group 4: Orders and Inventories
+ISRATIOx,Group 4: Orders and Inventories
+UMCSENTx,Group 4: Orders and Inventories
+M1SL,Group 5: Money and Credit
+M2SL,Group 5: Money and Credit
+M2REAL,Group 5: Money and Credit
+AMBSL,Group 5: Money and Credit
+TOTRESNS,Group 5: Money and Credit
+NONBORRES,Group 5: Money and Credit
+BUSLOANS,Group 5: Money and Credit
+REALLN,Group 5: Money and Credit
+NONREVSL,Group 5: Money and Credit
+CONSPI,Group 5: Money and Credit
+MZMSL,Group 5: Money and Credit
+DTCOLNVHFNM,Group 5: Money and Credit
+DTCTHFNM,Group 5: Money and Credit
+INVEST,Group 5: Money and Credit
+FEDFUNDS,Group 6: Interest rate and Exchange Rates
+CP3Mx,Group 6: Interest rate and Exchange Rates
+TB3MS,Group 6: Interest rate and Exchange Rates
+TB6MS,Group 6: Interest rate and Exchange Rates
+GS1,Group 6: Interest rate and Exchange Rates
+GS5,Group 6: Interest rate and Exchange Rates
+GS10,Group 6: Interest rate and Exchange Rates
+AAA,Group 6: Interest rate and Exchange Rates
+BAA,Group 6: Interest rate and Exchange Rates
+COMPAPFFx,Group 6: Interest rate and Exchange Rates
+TB3SMFFM,Group 6: Interest rate and Exchange Rates
+TB6SMFFM,Group 6: Interest rate and Exchange Rates
+T1YFFM,Group 6: Interest rate and Exchange Rates
+T5YFFM,Group 6: Interest rate and Exchange Rates
+T10YFFM,Group 6: Interest rate and Exchange Rates
+AAAFFM,Group 6: Interest rate and Exchange Rates
+BAAFFM,Group 6: Interest rate and Exchange Rates
+TWEXMMTH,Group 6: Interest rate and Exchange Rates
+EXSZUSx,Group 6: Interest rate and Exchange Rates
+EXJPUSx,Group 6: Interest rate and Exchange Rates
+EXUSUKx,Group 6: Interest rate and Exchange Rates
+EXCAUSx,Group 6: Interest rate and Exchange Rates
+PPIFGS,Group 7: Prices
+PPIFCG,Group 7: Prices
+PPIITM,Group 7: Prices
+PPICRM,Group 7: Prices
+OILPRICEx,Group 7: Prices
+PPICMM,Group 7: Prices
+NAPMPRI,Group 7: Prices
+CPIAUCSL,Group 7: Prices
+CPIAPPSL,Group 7: Prices
+CPITRNSL,Group 7: Prices
+CPIMEDSL,Group 7: Prices
+CUSR0000SAC,Group 7: Prices
+CUUR0000SAD,Group 7: Prices
+CUSR0000SAS,Group 7: Prices
+CPIULFSL,Group 7: Prices
+CUUR0000SA0L2,Group 7: Prices
+CUSR0000SA0L5,Group 7: Prices
+PCEPI,Group 7: Prices
+DDURRG3M086SBEA,Group 7: Prices
+DNDGRG3M086SBEA,Group 7: Prices
+DSERRG3M086SBEA,Group 7: Prices
+S&P 500,Group 8: Stock Market
+S&P: indust,Group 8: Stock Market
+S&P div yield,Group 8: Stock Market
+S&P PE ratio,Group 8: Stock Market

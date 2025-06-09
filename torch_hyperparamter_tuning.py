@@ -1,26 +1,30 @@
 import optuna
-from functools import partial
-from sklearn.metrics import mean_squared_error
-import tensorflow as tf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.preprocessing import StandardScaler
-from tensorflow.keras import layers, Input, Model
-from tensorflow.keras.layers import LSTM, GRU
-import os
-from statsmodels.tsa.arima.model import ARIMA, ARIMAResults
-import random
-import subprocess
 
+from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import StandardScaler
+
+from torch import nn
+from torch.nn import LSTM, GRU
+
+from statsmodels.tsa.arima.model import ARIMA, ARIMAResults
+
+import os
+import random
+from functools import partial
 import datetime
+import traceback
 
 from check_stationarity import load_train_data
+from torch_train_evaluate import DuplicateQdModel, MultilayerModel, AlternatingRnnModel, create_datapoints_mixed_frequency, train_and_evaluate_model
+from torch_multivariate_RNN import MultivariateModel, create_datapoints_multivariate
+from torch_univariate_RNN import UnivariateModel, create_datapoints_univariate
 
-from lstm_123 import instantiate_model_duplicate_qd, instantiate_model_multilayer, instantiate_model_alternating_rnn, create_datapoints_lstm_1_2_and_3
-from univariate_RNN import instantiate_univariate_model, create_datapoints_univariate
-from multivariate_RNN import instantiate_multivariate_model, create_datapoints_multivariate
+# from torch_univariate_RNN import instantiate_univariate_model, create_datapoints_univariate
+# from torch_multivariate_RNN import instantiate_multivariate_model, create_datapoints_multivariate
 
 def optuna_log(message):
     """
@@ -29,7 +33,7 @@ def optuna_log(message):
     with open(f"optuna_log_{log_id}.txt", "a") as f:
         f.write(message)
 
-def objective(trial, md_train_stationary, qd_train_stationary, model, create_datapoints, trial_context, optimize_feature_selection=True):
+def objective(trial, md_train_stationary, qd_train_stationary, model, create_datapoints, trial_context, optimize_feature_selection=True, model_description=None):
     # Define the hyperparameter search space
     start = datetime.datetime.now()
     optuna_log(f"\nTrial {trial.number} at {start.strftime("%Y-%m-%d %H:%M:%S")}:\n")
@@ -46,7 +50,7 @@ def objective(trial, md_train_stationary, qd_train_stationary, model, create_dat
     batch_size = trial.suggest_categorical("batch_size", [16, 32, 64])
     hidden_units = trial.suggest_categorical("hidden_units", [16, 32, 64])
     learning_rate = trial.suggest_float("learning_rate", 3e-3, 1e-2, log=True)
-    add_recession_feature = trial.suggest_categorical("add_recession_feature", [True, False])
+    add_recession_feature = False # trial.suggest_categorical("add_recession_feature", [True, False])
     sequence_length = 12  # Fixed sequence length for LSTM
 
     param_dict = {
@@ -65,33 +69,29 @@ def objective(trial, md_train_stationary, qd_train_stationary, model, create_dat
     # Call the LSTM_model_1 function with the sampled hyperparameters
     # if True:
     try:
-        # val_losses = train_and_evaluate_model(
-        #     md_train_stationary=md_train_stationary,
-        #     qd_train_stationary=qd_train_stationary,
-        #     feature_selection_method=feature_selection_method,
-        #     n_features=n_features,
-        #     dropout_rate=dropout_rate,
-        #     learning_rate=learning_rate,
-        #     optimizer=optimizer,
-        #     batch_size=batch_size,
-        #     hidden_units=hidden_units,
-        #     sequence_length=sequence_length,
-        #     instantiate_model=model,
-        #     create_datapoints=create_datapoints,
-        #     add_recession_feature=add_recession_feature,
-        #     max_epochs=40,
-        # )
+        results_for_hyperparameters = train_and_evaluate_model(
+            md_train_stationary=md_train_stationary,
+            qd_train_stationary=qd_train_stationary,
+            md_test_stationary=None,
+            qd_test_stationary=None,
+            feature_selection_method=feature_selection_method,
+            n_features=n_features,
+            dropout_rate=dropout_rate,
+            learning_rate=learning_rate,
+            optimizer_name=optimizer,
+            batch_size=batch_size,
+            hidden_units=hidden_units,
+            sequence_length=sequence_length,
+            instantiate_model=model,
+            create_datapoints=create_datapoints,
+            add_recession_feature=add_recession_feature,
+            max_epochs=40,
+            model_description=model_description if model_description is not None else "Trial {trial.number}",
+            store_results=False,
+        )
         # Use the average of the lowest validation losses as the objective value
-        # mean = sum(val_losses) / len(val_losses)
-        command = ["./thesis-env/Scripts/python.exe", "train_with_hyper_parameters.py", "--model", model_id, "--rnn", rnn_name, "--feature-selection-method", feature_selection_method, "--n-features", str(n_features), "--dropout-rate", str(dropout_rate), "--optimizer", optimizer, "--batch-size", str(batch_size), "--hidden-units", str(hidden_units), "--learning-rate", str(learning_rate), "--add-recession-feature", str(add_recession_feature)]
-        print(" ".join(command))
-        train_process = subprocess.run(command, capture_output=True, text=True)
-        print("subrpocess stdout:", train_process.stdout)
-        print("subrpocess stderr:", train_process.stderr)
-        print("subrpocess exit code:", train_process.returncode)
-        stdout = train_process.stdout.split("\n")
-        mean_train = float(stdout[-3].strip())
-        mean_val = float(stdout[-2].strip())
+        mean_val = np.mean(results_for_hyperparameters["val_losses"])
+        mean_train = np.mean(results_for_hyperparameters["train_losses"])
 
         end = datetime.datetime.now()
         duration = end - start
@@ -105,10 +105,16 @@ def objective(trial, md_train_stationary, qd_train_stationary, model, create_dat
             optuna_log(f"New best score: {mean_val}\n")
 
         return mean_val
-    except Exception as e:
-        # Handle any exceptions during training (e.g., invalid hyperparameters)
-        print(f"Trial failed with exception: {e}")
+    except Exception as e: # Handle any exceptions during training (e.g., invalid hyperparameters)
+
+        # Print message
+        print(f"\033[91mTrial failed with exception:\033[0m {e}")
         optuna_log(f"Trial failed with exception: {e}\n")
+
+        # Print stack trace
+        traceback.print_exc()
+        optuna_log(traceback.format_exc())
+
         return float("inf")
 
 if __name__ == "__main__":
@@ -139,20 +145,21 @@ if __name__ == "__main__":
 
     optimize_feature_selection = True
     if model_id == '1':
-        model = instantiate_model_duplicate_qd
-        create_datapoints = create_datapoints_lstm_1_2_and_3
+        model = DuplicateQdModel
+        create_datapoints = create_datapoints_mixed_frequency
     elif model_id == '2':
-        model = instantiate_model_multilayer
-        create_datapoints = create_datapoints_lstm_1_2_and_3
+        model = MultilayerModel
+        create_datapoints = create_datapoints_mixed_frequency
     elif model_id == '3':
-        model = instantiate_model_alternating_rnn
-        create_datapoints = create_datapoints_lstm_1_2_and_3
+        model = AlternatingRnnModel
+        create_datapoints = create_datapoints_mixed_frequency
     elif model_id == 'univariate':
-        model = instantiate_univariate_model
+        model = UnivariateModel
         create_datapoints = create_datapoints_univariate
         optimize_feature_selection = False
     elif model_id == 'multivariate':
-        model = instantiate_multivariate_model
+        model = MultivariateModel
+        print("Using multivariate model")
         create_datapoints = create_datapoints_multivariate
 
     if rnn_name.lower() == 'lstm':
@@ -166,7 +173,7 @@ if __name__ == "__main__":
 
     # Optimize the objective function
     study.optimize(
-        partial(objective, md_train_stationary=md_train_stationary, qd_train_stationary=qd_train_stationary, model=partial(model, Rnn=rnn), create_datapoints=create_datapoints, optimize_feature_selection=optimize_feature_selection, trial_context=trial_context),
+        partial(objective, md_train_stationary=md_train_stationary, qd_train_stationary=qd_train_stationary, model=partial(model, Rnn=rnn), create_datapoints=create_datapoints, optimize_feature_selection=optimize_feature_selection, trial_context=trial_context, model_description=f"{model_id} {rnn_name}"),
         n_trials=n_trials,
     )
 

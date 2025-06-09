@@ -39,7 +39,7 @@ def create_datapoints_univariate(monthly, quarterly, sequence_length):
     y = []
     y_dates = []
 
-    for q in range(len(quarterly) - sequence_length_quarterly - 1): # -1 to account for the next quarter
+    for q in range(len(quarterly) - sequence_length_quarterly): # -1 to account for the next quarter
         q_end = q + sequence_length_quarterly
 
         x_monthly.append(

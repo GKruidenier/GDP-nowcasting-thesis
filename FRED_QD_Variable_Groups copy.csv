@@ -1,0 +1,249 @@
+variable,group
+GDPC1,Group 1: NIPA
+PCECC96,Group 1: NIPA
+PCDGx,Group 1: NIPA
+PCESVx,Group 1: NIPA
+PCNDx,Group 1: NIPA
+GPDIC1,Group 1: NIPA
+FPIx,Group 1: NIPA
+Y033RC1Q027SBEAx,Group 1: NIPA
+PNFIx,Group 1: NIPA
+PRFIx,Group 1: NIPA
+A014RE1Q156NBEA,Group 1: NIPA
+GCEC1,Group 1: NIPA
+A823RL1Q225SBEA,Group 1: NIPA
+FGRECPTx,Group 1: NIPA
+SLCEx,Group 1: NIPA
+EXPGSC1,Group 1: NIPA
+IMPGSC1,Group 1: NIPA
+DPIC96,Group 1: NIPA
+OUTNFB,Group 1: NIPA
+OUTBS,Group 1: NIPA
+OUTMS,Group 1: NIPA
+B020RE1Q156NBEA,Group 1: NIPA
+B021RE1Q156NBEA,Group 1: NIPA
+INDPRO,Group 2: Industrial Production
+IPFINAL,Group 2: Industrial Production
+IPCONGD,Group 2: Industrial Production
+IPMAT,Group 2: Industrial Production
+IPDMAT,Group 2: Industrial Production
+IPNMAT,Group 2: Industrial Production
+IPDCONGD,Group 2: Industrial Production
+IPB51110SQ,Group 2: Industrial Production
+IPNCONGD,Group 2: Industrial Production
+IPBUSEQ,Group 2: Industrial Production
+IPB51220SQ,Group 2: Industrial Production
+TCU,Group 2: Industrial Production
+CUMFNS,Group 2: Industrial Production
+IPMANSICS,Group 2: Industrial Production
+IPB51222S,Group 2: Industrial Production
+IPFUELS,Group 2: Industrial Production
+PAYEMS,Group 3: Employment and Unemployment
+USPRIV,Group 3: Employment and Unemployment
+MANEMP,Group 3: Employment and Unemployment
+SRVPRD,Group 3: Employment and Unemployment
+USGOOD,Group 3: Employment and Unemployment
+DMANEMP,Group 3: Employment and Unemployment
+NDMANEMP,Group 3: Employment and Unemployment
+USCONS,Group 3: Employment and Unemployment
+USEHS,Group 3: Employment and Unemployment
+USFIRE,Group 3: Employment and Unemployment
+USINFO,Group 3: Employment and Unemployment
+USPBS,Group 3: Employment and Unemployment
+USLAH,Group 3: Employment and Unemployment
+USSERV,Group 3: Employment and Unemployment
+USMINE,Group 3: Employment and Unemployment
+USTPU,Group 3: Employment and Unemployment
+USGOVT,Group 3: Employment and Unemployment
+USTRADE,Group 3: Employment and Unemployment
+USWTRADE,Group 3: Employment and Unemployment
+CES9091000001,Group 3: Employment and Unemployment
+CES9092000001,Group 3: Employment and Unemployment
+CES9093000001,Group 3: Employment and Unemployment
+CE16OV,Group 3: Employment and Unemployment
+CIVPART,Group 3: Employment and Unemployment
+UNRATE,Group 3: Employment and Unemployment
+UNRATESTx,Group 3: Employment and Unemployment
+UNRATELTx,Group 3: Employment and Unemployment
+LNS14000012,Group 3: Employment and Unemployment
+LNS14000025,Group 3: Employment and Unemployment
+LNS14000026,Group 3: Employment and Unemployment
+UEMPLT5,Group 3: Employment and Unemployment
+UEMP5TO14,Group 3: Employment and Unemployment
+UEMP15T26,Group 3: Employment and Unemployment
+UEMP27OV,Group 3: Employment and Unemployment
+LNS13023621,Group 3: Employment and Unemployment
+LNS13023557,Group 3: Employment and Unemployment
+LNS13023705,Group 3: Employment and Unemployment
+LNS13023569,Group 3: Employment and Unemployment
+LNS12032194,Group 3: Employment and Unemployment
+HOABS,Group 3: Employment and Unemployment
+HOAMS,Group 3: Employment and Unemployment
+HOANBS,Group 3: Employment and Unemployment
+AWHMAN,Group 3: Employment and Unemployment
+AWHNONAG,Group 3: Employment and Unemployment
+AWOTMAN,Group 3: Employment and Unemployment
+HWIx,Group 3: Employment and Unemployment
+UEMPMEAN,Group 3: Employment and Unemployment
+CES0600000007,Group 3: Employment and Unemployment
+HWIURATIOx,Group 3: Employment and Unemployment
+CLAIMSx,Group 3: Employment and Unemployment
+HOUST,Group 4: Housing
+HOUST5F,Group 4: Housing
+PERMIT,Group 4: Housing
+HOUSTMW,Group 4: Housing
+HOUSTNE,Group 4: Housing
+HOUSTS,Group 4: Housing
+HOUSTW,Group 4: Housing
+USSTHPI,Group 4: Housing
+SPCS10RSA,Group 4: Housing
+SPCS20RSA,Group 4: Housing
+PERMITNE,Group 4: Housing
+PERMITMW,Group 4: Housing
+PERMITS,Group 4: Housing
+PERMITW,Group 4: Housing
+CMRMTSPLx,Group 5: Inventories Orders and Sales
+RSAFSx,Group 5: Inventories Orders and Sales
+AMDMNOx,Group 5: Inventories Orders and Sales
+ACOGNOx,Group 5: Inventories Orders and Sales
+AMDMUOx,Group 5: Inventories Orders and Sales
+ANDENOx,Group 5: Inventories Orders and Sales
+INVCQRMTSPL,Group 5: Inventories Orders and Sales
+BUSINVx,Group 5: Inventories Orders and Sales
+ISRATIOx,Group 5: Inventories Orders and Sales
+PCECTPI,Group 6: Prices
+PCEPILFE,Group 6: Prices
+GDPCTPI,Group 6: Prices
+GPDICTPI,Group 6: Prices
+IPDBS,Group 6: Prices
+DGDSRG3Q086SBEA,Group 6: Prices
+DDURRG3Q086SBEA,Group 6: Prices
+DSERRG3Q086SBEA,Group 6: Prices
+DNDGRG3Q086SBEA,Group 6: Prices
+DHCERG3Q086SBEA,Group 6: Prices
+DMOTRG3Q086SBEA,Group 6: Prices
+DFDHRG3Q086SBEA,Group 6: Prices
+DREQRG3Q086SBEA,Group 6: Prices
+DODGRG3Q086SBEA,Group 6: Prices
+DFXARG3Q086SBEA,Group 6: Prices
+DCLORG3Q086SBEA,Group 6: Prices
+DGOERG3Q086SBEA,Group 6: Prices
+DONGRG3Q086SBEA,Group 6: Prices
+DHUTRG3Q086SBEA,Group 6: Prices
+DHLCRG3Q086SBEA,Group 6: Prices
+DTRSRG3Q086SBEA,Group 6: Prices
+DRCARG3Q086SBEA,Group 6: Prices
+DFSARG3Q086SBEA,Group 6: Prices
+DIFSRG3Q086SBEA,Group 6: Prices
+DOTSRG3Q086SBEA,Group 6: Prices
+CPIAUCSL,Group 6: Prices
+CPILFESL,Group 6: Prices
+WPSFD49207,Group 6: Prices
+PPIACO,Group 6: Prices
+WPSFD49502,Group 6: Prices
+WPSFD4111,Group 6: Prices
+PPIIDC,Group 6: Prices
+WPSID61,Group 6: Prices
+WPU0531,Group 6: Prices
+WPU0561,Group 6: Prices
+OILPRICEx,Group 6: Prices
+WPSID62,Group 6: Prices
+PPICMM,Group 6: Prices
+CPIAPPSL,Group 6: Prices
+CPITRNSL,Group 6: Prices
+CPIMEDSL,Group 6: Prices
+CUSR0000SAC,Group 6: Prices
+CUSR0000SAD,Group 6: Prices
+CUSR0000SAS,Group 6: Prices
+CPIULFSL,Group 6: Prices
+CUSR0000SA0L2,Group 6: Prices
+CUSR0000SA0L5,Group 6: Prices
+CUSR0000SEHC,Group 6: Prices
+AHETPIx,Group 7: Earnings and Productivity
+CES2000000008x,Group 7: Earnings and Productivity
+CES3000000008x,Group 7: Earnings and Productivity
+COMPRMS,Group 7: Earnings and Productivity
+COMPRNFB,Group 7: Earnings and Productivity
+RCPHBS,Group 7: Earnings and Productivity
+OPHMFG,Group 7: Earnings and Productivity
+OPHNFB,Group 7: Earnings and Productivity
+OPHPBS,Group 7: Earnings and Productivity
+ULCBS,Group 7: Earnings and Productivity
+ULCMFG,Group 7: Earnings and Productivity
+ULCNFB,Group 7: Earnings and Productivity
+UNLPNBS,Group 7: Earnings and Productivity
+CES0600000008,Group 7: Earnings and Productivity
+FEDFUNDS,Group 8: Interest Rates
+TB3MS,Group 8: Interest Rates
+TB6MS,Group 8: Interest Rates
+GS1,Group 8: Interest Rates
+GS10,Group 8: Interest Rates
+MORTGAGE30US,Group 8: Interest Rates
+AAA,Group 8: Interest Rates
+BAA,Group 8: Interest Rates
+BAA10YM,Group 8: Interest Rates
+MORTG10YRx,Group 8: Interest Rates
+TB6M3Mx,Group 8: Interest Rates
+GS1TB3Mx,Group 8: Interest Rates
+GS10TB3Mx,Group 8: Interest Rates
+CPF3MTB3Mx,Group 8: Interest Rates
+GS5,Group 8: Interest Rates
+TB3SMFFM,Group 8: Interest Rates
+T5YFFM,Group 8: Interest Rates
+AAAFFM,Group 8: Interest Rates
+CP3M,Group 8: Interest Rates
+COMPAPFF,Group 8: Interest Rates
+BOGMBASEREALx,Group 9: Money and Credit
+IMFSLx,Group 9: Money and Credit
+M1REAL,Group 9: Money and Credit
+M2REAL,Group 9: Money and Credit
+MZMREAL,Group 9: Money and Credit
+BUSLOANSx,Group 9: Money and Credit
+CONSUMERx,Group 9: Money and Credit
+NONREVSLx,Group 9: Money and Credit
+REALLNx,Group 9: Money and Credit
+REVOLSLx,Group 9: Money and Credit
+TOTALSLx,Group 9: Money and Credit
+DRIWCIL,Group 9: Money and Credit
+TOTRESNS,Group 9: Money and Credit
+NONBORRES,Group 9: Money and Credit
+DTCOLNVHFNM,Group 9: Money and Credit
+DTCTHFNM,Group 9: Money and Credit
+INVEST,Group 9: Money and Credit
+TABSHNOx,Group 10: Household Balance Sheets
+TLBSHNOx,Group 10: Household Balance Sheets
+LIABPIx,Group 10: Household Balance Sheets
+TNWBSHNOx,Group 10: Household Balance Sheets
+NWPIx,Group 10: Household Balance Sheets
+TARESAx,Group 10: Household Balance Sheets
+HNOREMQ027Sx,Group 10: Household Balance Sheets
+TFAABSHNOx,Group 10: Household Balance Sheets
+CONSPIx,Group 10: Household Balance Sheets
+TWEXMMTH,Group 11: Exchange Rates
+EXUSEU,Group 11: Exchange Rates
+EXSZUSx,Group 11: Exchange Rates
+EXJPUSx,Group 11: Exchange Rates
+EXUSUKx,Group 11: Exchange Rates
+EXCAUSx,Group 11: Exchange Rates
+UMCSENTx,Group 12: Other
+USEPUINDXM,Group 12: Other
+VXOCLSx,Group 13: Stock Markets
+NIKKEI225,Group 13: Stock Markets
+NASDAQCOM,Group 13: Stock Markets
+S&P 500,Group 13: Stock Markets
+S&P: indust,Group 13: Stock Markets
+S&P: div yield,Group 13: Stock Markets
+S&P PE ratio,Group 13: Stock Markets
+GFDEGDQ188S,Group 14: Non-Household Balance Sheets
+GFDEBTNx,Group 14: Non-Household Balance Sheets
+TLBSNNCBx,Group 14: Non-Household Balance Sheets
+TLBSNNCBBDIx,Group 14: Non-Household Balance Sheets
+TTAABSNNCBx,Group 14: Non-Household Balance Sheets
+TNWMVBSNNCBx,Group 14: Non-Household Balance Sheets
+TNWMVBSNNCBBDIx,Group 14: Non-Household Balance Sheets
+TLBSNNBx,Group 14: Non-Household Balance Sheets
+TLBSNNBBDIx,Group 14: Non-Household Balance Sheets
+TABSNNBx,Group 14: Non-Household Balance Sheets
+TNWBSNNBx,Group 14: Non-Household Balance Sheets
+TNWBSNNBBDIx,Group 14: Non-Household Balance Sheets
+CNCFx,Group 14: Non-Household Balance Sheets

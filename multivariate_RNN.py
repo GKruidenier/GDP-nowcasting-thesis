@@ -26,8 +26,6 @@ def instantiate_multivariate_model(sequence_length, n_monthly_features, n_quarte
 
     model.compile(optimizer=optimizer_instance, loss="mse")
 
-    model.summary()
-
     return model
 
 def create_datapoints_multivariate(monthly, quarterly, sequence_length):
@@ -39,13 +37,13 @@ def create_datapoints_multivariate(monthly, quarterly, sequence_length):
     y = []
     y_dates = []
 
-    for q in range(len(quarterly) - sequence_length_quarterly - 1): # -1 to account for the next quarter
-        m = q * 3 + 2
+    for q in range(len(quarterly) - sequence_length_quarterly): # -1 to account for the next quarter
+        m = q * 3
         m_end = m + sequence_length
         q_end = q + sequence_length_quarterly
 
         all_monthly = monthly.iloc[m:m_end]
-        quarter = all_monthly.index.map(lambda d: d - pd.DateOffset(months=d.month % 3))
+        quarter = all_monthly.index.map(lambda d: d + pd.DateOffset(months=2 - ((d.month + 2) % 3)))
 
         summed_monthly = all_monthly.groupby(quarter).sum()
         print(f"{quarter=}")

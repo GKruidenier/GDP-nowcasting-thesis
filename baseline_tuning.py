@@ -16,11 +16,9 @@ import subprocess
 
 import datetime
 
-from check_stationarity import load_train_data
+from check_stationarity import load_train_data, load_test_data
 
-from lstm_123 import instantiate_model_duplicate_qd, instantiate_model_multilayer, instantiate_model_alternating_rnn, create_datapoints_lstm_1_2_and_3
-from univariate_RNN import instantiate_univariate_model, create_datapoints_univariate
-from multivariate_RNN import instantiate_multivariate_model, create_datapoints_multivariate
+from baselines_123 import train_and_evaluate_model
 
 def optuna_log(message):
     """
@@ -29,41 +27,42 @@ def optuna_log(message):
     with open(f"optuna_log_{log_id}.txt", "a") as f:
         f.write(message)
 
-def objective(trial, md_train_stationary, qd_train_stationary, model, create_datapoints, trial_context, optimize_feature_selection=True):
+def objective(trial, md_train_stationary, qd_train_stationary, md_test_stationary, qd_test_stationary, model, trial_context, optimize_feature_selection=True):
     # Define the hyperparameter search space
     start = datetime.datetime.now()
     optuna_log(f"\nTrial {trial.number} at {start.strftime("%Y-%m-%d %H:%M:%S")}:\n")
 
+    assert model in ["arimax", "dfm"]
+
     if optimize_feature_selection:
         feature_selection_method = trial.suggest_categorical("feature_selection_method", ["lasso"])
-        n_features = trial.suggest_int("n_features", 9, 40)
+        max_features = 80 if model == "arimax" else 20
+        n_features = trial.suggest_int("n_features", 9, max_features)
     else:
         feature_selection_method = "none"
         n_features = 1
 
-    dropout_rate = trial.suggest_float("dropout_rate", 0.2, 0.5)
-    optimizer = trial.suggest_categorical("optimizer", ["adam"])
-    batch_size = trial.suggest_categorical("batch_size", [16, 32, 64])
-    hidden_units = trial.suggest_categorical("hidden_units", [16, 32, 64])
-    learning_rate = trial.suggest_float("learning_rate", 3e-3, 1e-2, log=True)
     add_recession_feature = trial.suggest_categorical("add_recession_feature", [True, False])
-    sequence_length = 12  # Fixed sequence length for LSTM
+
+    if model == "arimax":
+        model_params = {
+            'endog_lags': trial.suggest_int("endog_lags", 1, 8),
+            'error_lags': trial.suggest_int("error_lags", 1, 8),
+        }
+    elif model == "dfm":
+        model_params = {
+            'factors': trial.suggest_int("factors", 1, 5),
+            'factor_orders': trial.suggest_int("factor_orders", 1, 5),
+        }
 
     param_dict = {
         "feature_selection_method": feature_selection_method,
         "n_features": n_features,
-        "dropout_rate": dropout_rate,
-        "optimizer": optimizer,
-        "batch_size": batch_size,
-        "hidden_units": hidden_units,
-        "sequence_length": sequence_length,
-        "learning_rate": learning_rate,
         "add_recession_feature": add_recession_feature,
-    }
+    } | model_params
+
     optuna_log(f"Parameters: {", ".join(f"{k}={v}" for k, v in param_dict.items())}\n")
 
-    # Call the LSTM_model_1 function with the sampled hyperparameters
-    # if True:
     try:
         # val_losses = train_and_evaluate_model(
         #     md_train_stationary=md_train_stationary,
@@ -83,22 +82,27 @@ def objective(trial, md_train_stationary, qd_train_stationary, model, create_dat
         # )
         # Use the average of the lowest validation losses as the objective value
         # mean = sum(val_losses) / len(val_losses)
-        command = ["./thesis-env/Scripts/python.exe", "train_with_hyper_parameters.py", "--model", model_id, "--rnn", rnn_name, "--feature-selection-method", feature_selection_method, "--n-features", str(n_features), "--dropout-rate", str(dropout_rate), "--optimizer", optimizer, "--batch-size", str(batch_size), "--hidden-units", str(hidden_units), "--learning-rate", str(learning_rate), "--add-recession-feature", str(add_recession_feature)]
-        print(" ".join(command))
-        train_process = subprocess.run(command, capture_output=True, text=True)
-        print("subrpocess stdout:", train_process.stdout)
-        print("subrpocess stderr:", train_process.stderr)
-        print("subrpocess exit code:", train_process.returncode)
-        stdout = train_process.stdout.split("\n")
-        mean_train = float(stdout[-3].strip())
-        mean_val = float(stdout[-2].strip())
+
+        val_scores, _ = train_and_evaluate_model(
+            md_train_stationary, qd_train_stationary,
+            feature_selection_method=feature_selection_method,
+            n_features=n_features,
+            add_recession_feature=add_recession_feature,
+            model_name=model,
+            model_params=model_params,
+            verbose=False,
+            md_test_stationary=md_test_stationary,
+            qd_test_stationary=qd_test_stationary,
+        )
+
+        mean_val = np.mean(val_scores)
 
         end = datetime.datetime.now()
         duration = end - start
         minutes = duration.seconds // 60
         seconds = duration.seconds % 60
 
-        optuna_log(f"Results: mean_val={mean_val}; mean_train={mean_train}; took {minutes}m{seconds}s\n")
+        optuna_log(f"Results: mean_val={mean_val}; took {minutes}m{seconds}s\n")
 
         if mean_val < trial_context["best_score"]:
             trial_context["best_score"] = mean_val
@@ -120,17 +124,15 @@ if __name__ == "__main__":
     model_idx = sys.argv.index("--model")
     model_id = sys.argv[model_idx + 1]
 
-    rnn_idx = sys.argv.index("--rnn")
-    rnn_name = sys.argv[rnn_idx + 1]
-    
     try:
         trials_idx = sys.argv.index("--trials")
         n_trials = int(sys.argv[trials_idx + 1])
     except ValueError:
-        n_trials = 45
+        n_trials = 50
 
     # Load the training data
     md_train_stationary, qd_train_stationary = load_train_data()
+    md_test_stationary, qd_test_stationary = load_test_data()
 
     # Create the Optuna study with Bayesian optimization (TPE)
     study = optuna.create_study(direction="minimize", sampler=optuna.samplers.TPESampler())
@@ -138,27 +140,6 @@ if __name__ == "__main__":
     optuna_log("\n----------------------------\n\n")
 
     optimize_feature_selection = True
-    if model_id == '1':
-        model = instantiate_model_duplicate_qd
-        create_datapoints = create_datapoints_lstm_1_2_and_3
-    elif model_id == '2':
-        model = instantiate_model_multilayer
-        create_datapoints = create_datapoints_lstm_1_2_and_3
-    elif model_id == '3':
-        model = instantiate_model_alternating_rnn
-        create_datapoints = create_datapoints_lstm_1_2_and_3
-    elif model_id == 'univariate':
-        model = instantiate_univariate_model
-        create_datapoints = create_datapoints_univariate
-        optimize_feature_selection = False
-    elif model_id == 'multivariate':
-        model = instantiate_multivariate_model
-        create_datapoints = create_datapoints_multivariate
-
-    if rnn_name.lower() == 'lstm':
-        rnn = LSTM
-    elif rnn_name.lower() == 'gru':
-        rnn = GRU
 
     trial_context = {
         "best_score": float("inf"),
@@ -166,7 +147,12 @@ if __name__ == "__main__":
 
     # Optimize the objective function
     study.optimize(
-        partial(objective, md_train_stationary=md_train_stationary, qd_train_stationary=qd_train_stationary, model=partial(model, Rnn=rnn), create_datapoints=create_datapoints, optimize_feature_selection=optimize_feature_selection, trial_context=trial_context),
+        partial(objective,
+                md_train_stationary=md_train_stationary, qd_train_stationary=qd_train_stationary,
+                md_test_stationary=md_test_stationary, qd_test_stationary=qd_test_stationary,
+                model=model_id,
+                optimize_feature_selection=optimize_feature_selection,
+                trial_context=trial_context),
         n_trials=n_trials,
     )
 
@@ -176,7 +162,6 @@ if __name__ == "__main__":
     print(f"  Params: ")
     for key, value in study.best_trial.params.items():
         print(f"    {key}: {value}")
-
 
     optuna_log("\nBest trial:\n")
     optuna_log(f"  Value: {study.best_trial.value}\n")
